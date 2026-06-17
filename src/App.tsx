@@ -1,7 +1,7 @@
-import TresorerieDashboard from './components/TresorerieDashboard'
+import SanteDashboard from './components/SanteDashboard'
 
 function App() {
-  return <TresorerieDashboard />
+  return <SanteDashboard />
 }
 
 export default App
