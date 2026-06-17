@@ -1,11 +1,7 @@
+import InscriptionForm from './components/InscriptionForm'
+
 function App() {
-  return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <h1 className="text-4xl font-bold text-white">
-        Camp Biblique-Navs 2026 — Tailwind OK ✅
-      </h1>
-    </div>
-  )
+  return <InscriptionForm />
 }
 
 export default App
