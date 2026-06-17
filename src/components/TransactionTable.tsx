@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { exportToExcel, generatePDF } from '../utils/exportTresorerie'
 
 interface Transaction {
   id: string
@@ -78,17 +79,47 @@ export default function TransactionTable({ refreshKey }: TransactionTableProps) 
     setPage(0)
   }
 
-  // Les deux boutons ci-dessous sont simulés pour le moment, comme demandé :
-  // le micro-service Node.js de génération réelle (Excel/PDF) sera branché ensuite.
-  function exporterExcel() {
-    console.log('Export Excel demandé — à brancher sur le micro-service de génération.')
-    setMessageExport('Export Excel simulé (micro-service à venir).')
+  // Les exports portent sur l'intégralité de l'historique (pas seulement la
+  // page affichée à l'écran), d'où une requête séparée sans pagination.
+  async function exporterExcel() {
+    setMessageExport('Préparation du fichier Excel...')
+    const { data, error } = await supabase
+      .from('tresorerie')
+      .select('*')
+      .order('date_mouvement', { ascending: true })
+
+    if (error || !data) {
+      setMessageExport("Erreur lors de l'export.")
+      console.error(error)
+      return
+    }
+
+    exportToExcel(data as Transaction[])
+    setMessageExport('Export Excel téléchargé.')
     setTimeout(() => setMessageExport(''), 3000)
   }
 
-  function genererRapportPDF() {
-    console.log('Génération PDF demandée — à brancher sur le micro-service de génération.')
-    setMessageExport('Génération PDF simulée (micro-service à venir).')
+  async function genererRapportPDF() {
+    setMessageExport('Génération du rapport PDF...')
+    const { data, error } = await supabase
+      .from('tresorerie')
+      .select('*')
+      .order('date_mouvement', { ascending: true })
+
+    if (error || !data) {
+      setMessageExport('Erreur lors de la génération du rapport.')
+      console.error(error)
+      return
+    }
+
+    const transactionsCompletes = data as Transaction[]
+    const soldeFinal = transactionsCompletes.reduce(
+      (acc, t) => acc + (t.type === 'entree' ? t.montant : -t.montant),
+      0
+    )
+
+    generatePDF(transactionsCompletes, soldeFinal)
+    setMessageExport('Rapport PDF téléchargé.')
     setTimeout(() => setMessageExport(''), 3000)
   }
 
