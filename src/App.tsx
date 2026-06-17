@@ -1,7 +1,7 @@
-import InscriptionForm from './components/InscriptionForm'
+import TresorerieDashboard from './components/TresorerieDashboard'
 
 function App() {
-  return <InscriptionForm />
+  return <TresorerieDashboard />
 }
 
 export default App
