@@ -1,4 +1,14 @@
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
+import {
+  Wallet,
+  Package,
+  HeartPulse,
+  ShieldCheck,
+  FileText,
+  BarChart3,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import Login from './Login'
@@ -33,6 +43,16 @@ const MENU_PAR_ROLE: Record<string, ItemMenu[]> = {
   comite_treso: [{ label: 'Trésorerie', path: 'tresorerie' }],
   comite_logistique: [{ label: 'Logistique', path: 'logistique' }],
   comite_sante: [{ label: 'Santé', path: 'sante' }],
+}
+
+const ICONES_PAR_CHEMIN: Record<string, LucideIcon> = {
+  tresorerie: Wallet,
+  logistique: Package,
+  sante: HeartPulse,
+  moderation: ShieldCheck,
+  contenus: FileText,
+  evaluations: BarChart3,
+  parametres: Settings,
 }
 
 export default function ComiteLayout() {
@@ -82,19 +102,23 @@ export default function ComiteLayout() {
           <p className="text-xs text-white/50 mt-0.5">Espace comité</p>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          {menu.map(item => (
-            <NavLink
-              key={item.path}
-              to={`/comite/${item.path}`}
-              className={({ isActive }) =>
-                `block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                  isActive ? 'bg-[#4F8A3D] text-white' : 'text-white/80 hover:bg-white/10'
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {menu.map(item => {
+            const Icon = ICONES_PAR_CHEMIN[item.path]
+            return (
+              <NavLink
+                key={item.path}
+                to={`/comite/${item.path}`}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                    isActive ? 'bg-[#4F8A3D] text-white' : 'text-white/80 hover:bg-white/10'
+                  }`
+                }
+              >
+                <Icon className="w-4 h-4" strokeWidth={1.7} />
+                {item.label}
+              </NavLink>
+            )
+          })}
         </nav>
         <div className="p-4 border-t border-white/10">
           {nomComplet && <p className="text-xs text-white/50 mb-2 truncate">{nomComplet}</p>}
@@ -121,19 +145,23 @@ export default function ComiteLayout() {
 
         {/* Menu bas — smartphone */}
         <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-[#E7F2DE] flex z-20">
-          {menu.map(item => (
-            <NavLink
-              key={item.path}
-              to={`/comite/${item.path}`}
-              className={({ isActive }) =>
-                `flex-1 py-3 text-center text-xs font-medium transition-colors duration-200 ${
-                  isActive ? 'text-[#4F8A3D]' : 'text-gray-400'
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {menu.map(item => {
+            const Icon = ICONES_PAR_CHEMIN[item.path]
+            return (
+              <NavLink
+                key={item.path}
+                to={`/comite/${item.path}`}
+                className={({ isActive }) =>
+                  `flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors duration-200 ${
+                    isActive ? 'text-[#4F8A3D]' : 'text-gray-400'
+                  }`
+                }
+              >
+                <Icon className="w-5 h-5" strokeWidth={1.7} />
+                {item.label}
+              </NavLink>
+            )
+          })}
         </nav>
       </div>
     </div>

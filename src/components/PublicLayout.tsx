@@ -1,5 +1,15 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import {
+  Home,
+  Megaphone,
+  Music2,
+  FolderOpen,
+  MessageSquareHeart,
+  Star,
+  MoreHorizontal,
+  type LucideIcon,
+} from 'lucide-react'
 import TransitionPage from './TransitionPage'
 
 // ============================================================
@@ -7,16 +17,22 @@ import TransitionPage from './TransitionPage'
 // Navigation haute sur ordinateur, menu bas + "Plus" sur smartphone.
 // ============================================================
 
-const LIENS_PRINCIPAUX = [
-  { label: 'Accueil', path: '/' },
-  { label: 'Annonces', path: '/annonces' },
-  { label: 'Louange', path: '/louange' },
-  { label: 'Ressources', path: '/ressources' },
+interface Lien {
+  label: string
+  path: string
+  Icon: LucideIcon
+}
+
+const LIENS_PRINCIPAUX: Lien[] = [
+  { label: 'Accueil', path: '/', Icon: Home },
+  { label: 'Annonces', path: '/annonces', Icon: Megaphone },
+  { label: 'Louange', path: '/louange', Icon: Music2 },
+  { label: 'Ressources', path: '/ressources', Icon: FolderOpen },
 ]
 
-const LIENS_SECONDAIRES = [
-  { label: 'Témoignages', path: '/temoignages' },
-  { label: 'Évaluation', path: '/evaluation' },
+const LIENS_SECONDAIRES: Lien[] = [
+  { label: 'Témoignages', path: '/temoignages', Icon: MessageSquareHeart },
+  { label: 'Évaluation', path: '/evaluation', Icon: Star },
 ]
 
 const classeLien = (actif: boolean) =>
@@ -51,7 +67,8 @@ export default function PublicLayout() {
         <Link to="/" className="font-bold text-[#1B3B1A]">Camp Biblique-Navs 2026</Link>
         <nav className="flex gap-1">
           {[...LIENS_PRINCIPAUX, ...LIENS_SECONDAIRES].map(lien => (
-            <NavLink key={lien.path} to={lien.path} className={({ isActive }) => classeLien(isActive)}>
+            <NavLink key={lien.path} to={lien.path} className={({ isActive }) => `${classeLien(isActive)} flex items-center gap-1.5`}>
+              <lien.Icon className="w-4 h-4" strokeWidth={1.7} />
               {lien.label}
             </NavLink>
           ))}
@@ -75,9 +92,10 @@ export default function PublicLayout() {
                 to={lien.path}
                 onClick={() => setPlusOuvert(false)}
                 className={({ isActive }) =>
-                  `block px-5 py-3 text-sm font-medium ${isActive ? 'text-[#1B3B1A] bg-[#F4F9F0]' : 'text-gray-500'}`
+                  `flex items-center gap-2 px-5 py-3 text-sm font-medium ${isActive ? 'text-[#1B3B1A] bg-[#F4F9F0]' : 'text-gray-500'}`
                 }
               >
+                <lien.Icon className="w-4 h-4" strokeWidth={1.7} />
                 {lien.label}
               </NavLink>
             ))}
@@ -90,21 +108,23 @@ export default function PublicLayout() {
               to={lien.path}
               onClick={() => setPlusOuvert(false)}
               className={({ isActive }) =>
-                `flex-1 py-3 text-center text-xs font-medium transition-colors duration-200 ${
+                `flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors duration-200 ${
                   isActive ? 'text-[#4F8A3D]' : 'text-gray-400'
                 }`
               }
             >
+              <lien.Icon className="w-5 h-5" strokeWidth={1.7} />
               {lien.label}
             </NavLink>
           ))}
           <button
             type="button"
             onClick={() => setPlusOuvert(v => !v)}
-            className={`flex-1 py-3 text-center text-xs font-medium transition-colors duration-200 ${
+            className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors duration-200 ${
               plusOuvert ? 'text-[#4F8A3D]' : 'text-gray-400'
             }`}
           >
+            <MoreHorizontal className="w-5 h-5" strokeWidth={1.7} />
             Plus
           </button>
         </div>
