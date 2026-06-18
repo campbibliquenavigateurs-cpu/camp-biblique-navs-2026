@@ -16,6 +16,7 @@ export type StatutAcces = 'verification' | 'non_connecte' | 'autorise' | 'refuse
 export function useAccesRole(rolesAutorises: readonly string[]) {
   const [statutAcces, setStatutAcces] = useState<StatutAcces>('verification')
   const [profilId, setProfilId] = useState<string | null>(null)
+  const [role, setRole] = useState<string | null>(null)
   const [nomComplet, setNomComplet] = useState<string>('')
 
   const verifierAcces = useCallback(async () => {
@@ -36,6 +37,7 @@ export function useAccesRole(rolesAutorises: readonly string[]) {
 
     if (profil && rolesAutorises.includes(profil.role)) {
       setProfilId(utilisateur.id)
+      setRole(profil.role)
       setNomComplet(`${profil.prenoms} ${profil.nom}`.trim())
       setStatutAcces('autorise')
     } else {
@@ -49,5 +51,5 @@ export function useAccesRole(rolesAutorises: readonly string[]) {
     verifierAcces()
   }, [verifierAcces])
 
-  return { statutAcces, profilId, nomComplet, verifierAcces }
+  return { statutAcces, profilId, role, nomComplet, verifierAcces }
 }

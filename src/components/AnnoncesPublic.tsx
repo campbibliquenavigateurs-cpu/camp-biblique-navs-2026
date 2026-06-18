@@ -34,7 +34,6 @@ export default function AnnoncesPublic() {
         .from('annonces')
         .select('*')
         .order('date_publication', { ascending: false })
-        .limit(5)
 
       if (!error && data) {
         const triees = [...(data as Annonce[])].sort(
@@ -47,16 +46,26 @@ export default function AnnoncesPublic() {
     charger()
   }, [])
 
-  if (chargement || annonces.length === 0) return null
-
   return (
-    <div className="max-w-2xl mx-auto px-4 space-y-2 mb-6">
-      {annonces.map(a => (
-        <div key={a.id} className={`bg-white rounded-xl shadow-sm p-4 ${styleBordure(a.priorite)}`}>
-          <p className="font-semibold text-[#1B3B1A] text-sm">{a.titre}</p>
-          <p className="text-sm text-gray-600 mt-0.5">{a.contenu}</p>
-        </div>
-      ))}
+    <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl font-bold text-[#1B3B1A] mb-6 text-center">Annonces &amp; Flash Infos</h1>
+
+        {chargement ? (
+          <p className="text-center text-sm text-gray-400">Chargement...</p>
+        ) : annonces.length === 0 ? (
+          <p className="text-center text-sm text-gray-400">Aucune annonce pour le moment.</p>
+        ) : (
+          <div className="space-y-2">
+            {annonces.map(a => (
+              <div key={a.id} className={`bg-white rounded-xl shadow-sm p-4 ${styleBordure(a.priorite)}`}>
+                <p className="font-semibold text-[#1B3B1A] text-sm">{a.titre}</p>
+                <p className="text-sm text-gray-600 mt-0.5">{a.contenu}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
