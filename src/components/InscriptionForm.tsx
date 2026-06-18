@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from './Toast'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Formulaire d'inscription (4 étapes)
 // Palette : verts "Greenery" + accent doré pour les tarifs
+// Phase 4, Étape D : anti-doublons + validation téléphone renforcée
 // ============================================================
 
 // ---- Types ----
@@ -37,6 +39,14 @@ interface InscriptionFormData {
   contactUrgenceTelephone: string
 }
 
+interface ResultatConsultation {
+  categorie: string
+  statut_paiement: string
+  montant_paye: number
+  montant_du: number
+  date_inscription: string
+}
+
 const FORM_INITIAL: InscriptionFormData = {
   nom: '', prenoms: '', genre: '', categorieChoix: '', ageExact: '',
   trancheAge: '', telephone: '', occupation: '', pays: '', paysPrecision: '',
@@ -59,6 +69,17 @@ function formatFCFA(montant: number) {
   return montant.toLocaleString('fr-FR') + ' F CFA'
 }
 
+// Ramène un numéro saisi sous n'importe quelle forme (espaces, tirets,
+// +225...) à un format canonique à 10 chiffres, pour fiabiliser à la fois
+// la validation et la détection de doublons.
+function normaliserTelephone(valeur: string): string {
+  let chiffres = valeur.replace(/\D/g, '')
+  if (chiffres.startsWith('225') && chiffres.length > 10) {
+    chiffres = chiffres.slice(chiffres.length - 10)
+  }
+  return chiffres
+}
+
 const champBase =
   'w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4F8A3D] focus:border-transparent'
 
@@ -70,11 +91,17 @@ const carteChoix = (actif: boolean) =>
   }`
 
 export default function InscriptionForm() {
+  const toast = useToast()
   const [etape, setEtape] = useState(1)
   const [form, setForm] = useState<InscriptionFormData>(FORM_INITIAL)
   const [envoiEnCours, setEnvoiEnCours] = useState(false)
-  const [erreurEnvoi, setErreurEnvoi] = useState('')
   const [succes, setSucces] = useState(false)
+
+  // Anti-doublon
+  const [doublonDetecte, setDoublonDetecte] = useState(false)
+  const [consultationEnCours, setConsultationEnCours] = useState(false)
+  const [consultationErreur, setConsultationErreur] = useState('')
+  const [consultationResultat, setConsultationResultat] = useState<ResultatConsultation | null>(null)
 
   const totalEtapes = 4
 
@@ -86,7 +113,9 @@ export default function InscriptionForm() {
     form.categorieChoix === 'enfant' ? PRIX.enfant : form.categorieChoix === 'adulte' ? PRIX.adulte : 0
 
   // ---- Validation ----
-  const telephoneValide = (val: string) => /^(\+225)?\s?[0-9]{8,10}$/.test(val.replace(/[\s-]/g, ''))
+  // Format ivoirien : exactement 10 chiffres une fois le numéro normalisé
+  // (espaces, tirets et indicatif +225 retirés).
+  const telephoneValide = (val: string) => normaliserTelephone(val).length === 10
 
   const etape1Valide =
     form.nom.trim() !== '' &&
@@ -140,14 +169,35 @@ export default function InscriptionForm() {
   async function soumettre() {
     if (!etape4Valide) return
     setEnvoiEnCours(true)
-    setErreurEnvoi('')
+
+    const telephoneNormalise = normaliserTelephone(form.telephone)
+
+    // Vérification anti-doublon AVANT toute tentative d'insertion.
+    const { data: doublon, error: erreurVerif } = await supabase.rpc('verifier_doublon_inscription', {
+      p_nom: form.nom,
+      p_prenoms: form.prenoms,
+      p_telephone: telephoneNormalise,
+    })
+
+    if (erreurVerif) {
+      setEnvoiEnCours(false)
+      toast.erreur('Une erreur est survenue. Merci de réessayer.')
+      console.error(erreurVerif)
+      return
+    }
+
+    if (doublon) {
+      setEnvoiEnCours(false)
+      setDoublonDetecte(true)
+      return
+    }
 
     const { error } = await supabase.from('inscriptions').insert({
       nom: form.nom.trim(),
       prenoms: form.prenoms.trim(),
       genre: form.genre,
       date_naissance: calculerDateNaissanceApprox(),
-      telephone: form.telephone.trim(),
+      telephone: telephoneNormalise,
       occupation: form.occupation.trim(),
       pays: form.pays === 'autre' ? form.paysPrecision.trim() : "Côte d'Ivoire",
       ville: form.ville.trim(),
@@ -158,18 +208,39 @@ export default function InscriptionForm() {
       motivation: form.motivation.trim(),
       invite_par_referent: form.invite === 'oui' ? form.nomReferent.trim() : null,
       contact_urgence_nom: form.contactUrgenceNom.trim(),
-      contact_urgence_telephone: form.contactUrgenceTelephone.trim(),
+      contact_urgence_telephone: normaliserTelephone(form.contactUrgenceTelephone),
       montant_du: montantAPayer,
     })
 
     setEnvoiEnCours(false)
 
     if (error) {
-      setErreurEnvoi('Une erreur est survenue. Merci de réessayer.')
+      // Une contrainte d'unicité bloquée en base (cas rare de double-clic
+      // ou de course entre deux soumissions quasi simultanées) tombe ici.
+      toast.erreur('Une erreur est survenue. Merci de réessayer.')
       console.error(error)
     } else {
       setSucces(true)
     }
+  }
+
+  async function consulterMonInscription() {
+    setConsultationEnCours(true)
+    setConsultationErreur('')
+
+    const { data, error } = await supabase.rpc('consulter_inscription', {
+      p_nom: form.nom,
+      p_prenoms: form.prenoms,
+      p_telephone: normaliserTelephone(form.telephone),
+    })
+
+    setConsultationEnCours(false)
+
+    if (error || !data || data.length === 0) {
+      setConsultationErreur('Aucune inscription trouvée avec ces informations.')
+      return
+    }
+    setConsultationResultat(data[0] as ResultatConsultation)
   }
 
   if (succes) {
@@ -186,6 +257,54 @@ export default function InscriptionForm() {
             Merci {form.prenoms} ! Votre inscription au Camp Biblique-Navs 2026 a bien été enregistrée.
             Le comité vous contactera pour la suite du processus de paiement.
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (doublonDetecte) {
+    return (
+      <div className="min-h-screen bg-[#F4F9F0] flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center border border-[#D9A441]">
+          <div className="w-16 h-16 rounded-full bg-[#D9A441]/15 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-[#8A6A23]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-[#1B3B1A] mb-2">Inscription déjà existante</h2>
+          <p className="text-gray-600 text-sm mb-5">
+            Il semble que vous soyez déjà inscrit(e) pour le camp de cette année. Pour vérifier votre statut,
+            cliquez sur « Consulter mon inscription ».
+          </p>
+
+          {!consultationResultat ? (
+            <>
+              <button
+                type="button"
+                onClick={consulterMonInscription}
+                disabled={consultationEnCours}
+                className="w-full px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] mb-3 disabled:bg-gray-300"
+              >
+                {consultationEnCours ? 'Recherche...' : 'Consulter mon inscription'}
+              </button>
+              {consultationErreur && <p className="text-xs text-[#B3492F] mb-3">{consultationErreur}</p>}
+            </>
+          ) : (
+            <div className="text-left bg-[#F4F9F0] rounded-xl p-4 mb-4 space-y-1.5 text-sm">
+              <p><span className="text-gray-500">Catégorie : </span><span className="font-semibold text-[#1B3B1A]">{consultationResultat.categorie}</span></p>
+              <p><span className="text-gray-500">Statut de paiement : </span><span className="font-semibold text-[#1B3B1A]">{consultationResultat.statut_paiement ?? 'En attente'}</span></p>
+              <p><span className="text-gray-500">Montant payé : </span><span className="font-semibold text-[#1B3B1A]">{formatFCFA(consultationResultat.montant_paye || 0)}</span></p>
+              <p><span className="text-gray-500">Montant dû : </span><span className="font-semibold text-[#1B3B1A]">{formatFCFA(consultationResultat.montant_du || 0)}</span></p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => { setDoublonDetecte(false); setConsultationResultat(null); setConsultationErreur('') }}
+            className="text-sm text-[#5B7A56] hover:underline"
+          >
+            Modifier mes informations
+          </button>
         </div>
       </div>
     )
@@ -362,6 +481,9 @@ export default function InscriptionForm() {
                   className={champBase}
                   placeholder="Ex : 07 00 00 00 00"
                 />
+                {form.telephone !== '' && !telephoneValide(form.telephone) && (
+                  <p className="text-xs text-[#B3492F] mt-1">Numéro invalide — 10 chiffres attendus</p>
+                )}
               </div>
 
               <div>
@@ -553,15 +675,12 @@ export default function InscriptionForm() {
                       className={champBase}
                       placeholder="Ex : 05 00 00 00 00"
                     />
+                    {form.contactUrgenceTelephone !== '' && !telephoneValide(form.contactUrgenceTelephone) && (
+                      <p className="text-xs text-[#B3492F] mt-1">Numéro invalide — 10 chiffres attendus</p>
+                    )}
                   </div>
                 </div>
               </div>
-
-              {erreurEnvoi && (
-                <p className="text-sm font-medium text-[#B3492F] bg-[#B3492F]/10 rounded-lg px-3 py-2">
-                  {erreurEnvoi}
-                </p>
-              )}
             </div>
           )}
 
@@ -598,7 +717,7 @@ export default function InscriptionForm() {
                   etape4Valide && !envoiEnCours ? 'bg-[#4F8A3D] hover:bg-[#3F7530]' : 'bg-gray-300 cursor-not-allowed'
                 }`}
               >
-                {envoiEnCours ? 'Envoi...' : "Confirmer l'inscription"}
+                {envoiEnCours ? 'Vérification...' : "Confirmer l'inscription"}
               </button>
             )}
           </div>

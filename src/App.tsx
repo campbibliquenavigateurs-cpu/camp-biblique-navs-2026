@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
+import { ToastProvider } from './components/Toast'
 import PublicLayout from './components/PublicLayout'
 import ComiteLayout from './components/ComiteLayout'
 
@@ -22,33 +23,35 @@ import ParametresAdmin from './components/ParametresAdmin'
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Hub public */}
-        <Route element={<PublicLayout />}>
-          <Route index element={<InscriptionForm />} />
-          <Route path="annonces" element={<AnnoncesPublic />} />
-          <Route path="louange" element={<ChantsPublic />} />
-          <Route path="ressources" element={<DocumentsPublic />} />
-          <Route path="temoignages" element={<Temoignages />} />
-          <Route path="evaluation" element={<EvaluationForm />} />
-        </Route>
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Hub public */}
+          <Route element={<PublicLayout />}>
+            <Route index element={<InscriptionForm />} />
+            <Route path="annonces" element={<AnnoncesPublic />} />
+            <Route path="louange" element={<ChantsPublic />} />
+            <Route path="ressources" element={<DocumentsPublic />} />
+            <Route path="temoignages" element={<Temoignages />} />
+            <Route path="evaluation" element={<EvaluationForm />} />
+          </Route>
 
-        {/* Espace comité (menu dynamique selon le rôle, voir ComiteLayout.tsx) */}
-        <Route path="comite" element={<ComiteLayout />}>
-          <Route path="tresorerie" element={<TresorerieDashboard />} />
-          <Route path="logistique" element={<LogistiqueDashboard />} />
-          <Route path="sante" element={<SanteDashboard />} />
-          <Route path="moderation" element={<AdminTemoignages />} />
-          <Route path="contenus" element={<ContenusAdmin />} />
-          <Route path="evaluations" element={<EvaluationStats />} />
-          <Route path="parametres" element={<ParametresAdmin />} />
-        </Route>
+          {/* Espace comité (menu dynamique selon le rôle, voir ComiteLayout.tsx) */}
+          <Route path="comite" element={<ComiteLayout />}>
+            <Route path="tresorerie" element={<TresorerieDashboard />} />
+            <Route path="logistique" element={<LogistiqueDashboard />} />
+            <Route path="sante" element={<SanteDashboard />} />
+            <Route path="moderation" element={<AdminTemoignages />} />
+            <Route path="contenus" element={<ContenusAdmin />} />
+            <Route path="evaluations" element={<EvaluationStats />} />
+            <Route path="parametres" element={<ParametresAdmin />} />
+          </Route>
 
-        {/* Toute URL inconnue renvoie vers l'accueil */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Toute URL inconnue renvoie vers l'accueil */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   )
 }
 

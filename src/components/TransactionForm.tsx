@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from './Toast'
 
 type TypeMouvement = 'entree' | 'sortie'
 
@@ -28,13 +29,13 @@ interface TransactionFormProps {
 }
 
 export default function TransactionForm({ profilId, onAjout }: TransactionFormProps) {
+  const toast = useToast()
   const [type, setType] = useState<TypeMouvement>('entree')
   const [categorie, setCategorie] = useState('')
   const [montant, setMontant] = useState('')
   const [detail, setDetail] = useState('')
   const [dateMouvement, setDateMouvement] = useState(() => new Date().toISOString().slice(0, 10))
   const [envoiEnCours, setEnvoiEnCours] = useState(false)
-  const [message, setMessage] = useState('')
 
   const categories = type === 'entree' ? CATEGORIES_ENTREE : CATEGORIES_SORTIE
 
@@ -43,13 +44,15 @@ export default function TransactionForm({ profilId, onAjout }: TransactionFormPr
     setCategorie('') // évite une catégorie incohérente avec le nouveau type
   }
 
+  // Montant strictement positif : ni négatif, ni nul.
+  const montantValide = montant !== '' && Number(montant) > 0
+
   const formulaireValide =
-    categorie !== '' && Number(montant) > 0 && detail.trim() !== '' && dateMouvement !== ''
+    categorie !== '' && montantValide && detail.trim() !== '' && dateMouvement !== ''
 
   async function soumettre() {
     if (!formulaireValide) return
     setEnvoiEnCours(true)
-    setMessage('')
 
     const { error } = await supabase.from('tresorerie').insert({
       type,
@@ -63,12 +66,12 @@ export default function TransactionForm({ profilId, onAjout }: TransactionFormPr
     setEnvoiEnCours(false)
 
     if (error) {
-      setMessage("Erreur lors de l'enregistrement. Merci de réessayer.")
+      toast.erreur("Erreur lors de l'enregistrement. Merci de réessayer.")
       console.error(error)
       return
     }
 
-    setMessage('Mouvement enregistré avec succès.')
+    toast.succes('Mouvement de trésorerie enregistré avec succès !')
     setCategorie('')
     setMontant('')
     setDetail('')
@@ -123,12 +126,15 @@ export default function TransactionForm({ profilId, onAjout }: TransactionFormPr
           <label className="block text-sm font-medium text-[#1B3B1A] mb-1">Montant (F CFA)</label>
           <input
             type="number"
-            min={0}
+            min={1}
             value={montant}
             onChange={e => setMontant(e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4F8A3D] focus:border-transparent"
             placeholder="Ex : 50000"
           />
+          {montant !== '' && !montantValide && (
+            <p className="text-xs text-[#B3492F] mt-1">Le montant doit être supérieur à zéro</p>
+          )}
         </div>
       </div>
 
@@ -152,12 +158,6 @@ export default function TransactionForm({ profilId, onAjout }: TransactionFormPr
           className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4F8A3D] focus:border-transparent"
         />
       </div>
-
-      {message && (
-        <p className={`text-sm mb-3 ${message.startsWith('Erreur') ? 'text-[#B3492F]' : 'text-[#4F8A3D]'}`}>
-          {message}
-        </p>
-      )}
 
       <button
         type="button"

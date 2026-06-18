@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from './Toast'
 
 interface Membre {
   id: string
@@ -12,12 +13,12 @@ interface MaterielFormProps {
 }
 
 export default function MaterielForm({ onAjout }: MaterielFormProps) {
+  const toast = useToast()
   const [designation, setDesignation] = useState('')
   const [quantiteDepart, setQuantiteDepart] = useState('')
   const [responsable, setResponsable] = useState('')
   const [equipe, setEquipe] = useState<Membre[]>([])
   const [envoiEnCours, setEnvoiEnCours] = useState(false)
-  const [message, setMessage] = useState('')
 
   useEffect(() => {
     async function chargerEquipe() {
@@ -29,29 +30,33 @@ export default function MaterielForm({ onAjout }: MaterielFormProps) {
     chargerEquipe()
   }, [])
 
-  const formulaireValide = designation.trim() !== '' && Number(quantiteDepart) > 0
+  // Le responsable logistique est désormais un champ obligatoire :
+  // un matériel sans personne identifiée pour en répondre est une source
+  // d'erreurs fréquente sur le terrain (perte, casse non tracée).
+  const formulaireValide =
+    designation.trim() !== '' && Number(quantiteDepart) > 0 && responsable !== ''
 
   async function soumettre() {
     if (!formulaireValide) return
     setEnvoiEnCours(true)
-    setMessage('')
 
     const { error } = await supabase.from('logistique').insert({
       designation: designation.trim(),
       quantite_depart: Number(quantiteDepart),
       quantite_retour: null,
       etat: null,
-      responsable: responsable || null,
+      responsable,
     })
 
     setEnvoiEnCours(false)
 
     if (error) {
-      setMessage("Erreur lors de l'enregistrement. Merci de réessayer.")
+      toast.erreur("Erreur lors de l'enregistrement. Merci de réessayer.")
       console.error(error)
       return
     }
 
+    toast.succes('Matériel ajouté avec succès !')
     setDesignation('')
     setQuantiteDepart('')
     setResponsable('')
@@ -85,21 +90,21 @@ export default function MaterielForm({ onAjout }: MaterielFormProps) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#1B3B1A] mb-1">Responsable</label>
+          <label className="block text-sm font-medium text-[#1B3B1A] mb-1">
+            Responsable <span className="text-[#B3492F]">*</span>
+          </label>
           <select
             value={responsable}
             onChange={e => setResponsable(e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#4F8A3D] focus:border-transparent"
           >
-            <option value="">Non assigné</option>
+            <option value="">Sélectionner un responsable...</option>
             {equipe.map(membre => (
               <option key={membre.id} value={membre.id}>{membre.prenoms} {membre.nom}</option>
             ))}
           </select>
         </div>
       </div>
-
-      {message && <p className="text-sm text-[#B3492F] mb-3">{message}</p>}
 
       <button
         type="button"
