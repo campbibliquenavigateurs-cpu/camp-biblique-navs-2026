@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+content = """import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
 import PublicLayout from './components/PublicLayout'
 import ComiteLayout from './components/ComiteLayout'
@@ -50,3 +50,9 @@ function App() {
 }
 
 export default App
+"""
+
+with open('src/App.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("App.tsx ecrit avec succes !")
