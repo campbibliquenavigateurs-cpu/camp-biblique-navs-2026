@@ -1,17 +1,7 @@
-import AnnoncesPublic from './components/AnnoncesPublic'
-import ChantsPublic from './components/ChantsPublic'
-import DocumentsPublic from './components/DocumentsPublic'
+import EvaluationStats from './components/EvaluationStats'
 
 function App() {
-  return (
-    <div>
-      <div className="pt-6">
-        <AnnoncesPublic />
-      </div>
-      <ChantsPublic />
-      <DocumentsPublic />
-    </div>
-  )
+  return <EvaluationStats />
 }
 
 export default App
