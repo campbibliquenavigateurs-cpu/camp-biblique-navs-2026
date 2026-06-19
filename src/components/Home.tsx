@@ -164,8 +164,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero — dégradé fluide, sans coupure de couleur brutale */}
-      <section className="bg-gradient-to-b from-[#1B3B1A] via-[#3F5C3D] to-[#F4F9F0] px-4 pt-10 sm:pt-14 pb-16 text-center">
+      {/* Hero */}
+      <section className="bg-[#1B3B1A] px-4 pt-10 sm:pt-14 pb-16 text-center">
         <p className="text-[#9CC18F] text-xs sm:text-sm uppercase tracking-[0.2em] font-semibold mb-3">
           Mission Évangélique des Navigateurs CI
         </p>
