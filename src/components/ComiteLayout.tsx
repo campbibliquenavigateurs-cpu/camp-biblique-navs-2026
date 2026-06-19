@@ -1,4 +1,5 @@
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import {
   Wallet,
   Package,
@@ -8,6 +9,7 @@ import {
   BarChart3,
   Settings,
   ClipboardList,
+  MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -34,17 +36,31 @@ interface ItemMenu {
 const MENU_PAR_ROLE: Record<string, ItemMenu[]> = {
   admin: [
     { label: 'Trésorerie', path: 'tresorerie' },
-    { label: 'Logistique', path: 'logistique' },
-    { label: 'Santé', path: 'sante' },
     { label: 'Inscriptions', path: 'inscriptions' },
-    { label: 'Modération', path: 'moderation' },
+    { label: 'Logistique', path: 'logistique' },
     { label: 'Contenus', path: 'contenus' },
+    { label: 'Santé', path: 'sante' },
+    { label: 'Modération', path: 'moderation' },
     { label: 'Évaluations', path: 'evaluations' },
     { label: 'Paramètres', path: 'parametres' },
   ],
   comite_treso: [{ label: 'Trésorerie', path: 'tresorerie' }],
   comite_logistique: [{ label: 'Logistique', path: 'logistique' }],
   comite_sante: [{ label: 'Santé', path: 'sante' }],
+}
+
+// Sur smartphone, seuls les 4 onglets jugés prioritaires restent visibles
+// directement dans le menu bas ; les autres sont regroupés sous "Plus"
+// (même motif que le Hub public). La barre latérale, elle, affiche tout.
+const ONGLETS_PRIORITAIRES = ['tresorerie', 'inscriptions', 'logistique', 'contenus']
+
+function diviserMenuMobile(menu: ItemMenu[]) {
+  if (menu.length <= 4) return { principaux: menu, secondaires: [] as ItemMenu[] }
+  const principaux = ONGLETS_PRIORITAIRES
+    .map(chemin => menu.find(item => item.path === chemin))
+    .filter((item): item is ItemMenu => !!item)
+  const secondaires = menu.filter(item => !ONGLETS_PRIORITAIRES.includes(item.path))
+  return { principaux, secondaires }
 }
 
 const ICONES_PAR_CHEMIN: Record<string, LucideIcon> = {
@@ -61,6 +77,7 @@ const ICONES_PAR_CHEMIN: Record<string, LucideIcon> = {
 export default function ComiteLayout() {
   const { statutAcces, role, nomComplet, verifierAcces } = useAccesRole(ROLES_COMITE)
   const location = useLocation()
+  const [plusOuvert, setPlusOuvert] = useState(false)
 
   if (statutAcces === 'verification') {
     return (
@@ -85,6 +102,7 @@ export default function ComiteLayout() {
   }
 
   const menu = MENU_PAR_ROLE[role ?? ''] ?? []
+  const { principaux, secondaires } = diviserMenuMobile(menu)
 
   // Page d'accueil de l'espace comité : redirige vers le premier onglet autorisé.
   if ((location.pathname === '/comite' || location.pathname === '/comite/') && menu.length > 0) {
@@ -147,24 +165,61 @@ export default function ComiteLayout() {
         </main>
 
         {/* Menu bas — smartphone */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-[#E7F2DE] flex z-20">
-          {menu.map(item => {
-            const Icon = ICONES_PAR_CHEMIN[item.path]
-            return (
-              <NavLink
-                key={item.path}
-                to={`/comite/${item.path}`}
-                className={({ isActive }) =>
-                  `flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors duration-200 ${
-                    isActive ? 'text-[#4F8A3D]' : 'text-gray-400'
-                  }`
-                }
+        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-[#E7F2DE] z-20">
+          {plusOuvert && secondaires.length > 0 && (
+            <div className="absolute bottom-full inset-x-0 bg-white border-t border-[#E7F2DE] shadow-[0_-4px_12px_rgba(0,0,0,0.05)] grid grid-cols-2">
+              {secondaires.map(item => {
+                const Icon = ICONES_PAR_CHEMIN[item.path]
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={`/comite/${item.path}`}
+                    onClick={() => setPlusOuvert(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-4 py-3 text-sm font-medium ${
+                        isActive ? 'text-[#1B3B1A] bg-[#F4F9F0]' : 'text-gray-500'
+                      }`
+                    }
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={1.7} />
+                    {item.label}
+                  </NavLink>
+                )
+              })}
+            </div>
+          )}
+          <div className="flex">
+            {principaux.map(item => {
+              const Icon = ICONES_PAR_CHEMIN[item.path]
+              return (
+                <NavLink
+                  key={item.path}
+                  to={`/comite/${item.path}`}
+                  onClick={() => setPlusOuvert(false)}
+                  className={({ isActive }) =>
+                    `flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors duration-200 ${
+                      isActive ? 'text-[#4F8A3D]' : 'text-gray-400'
+                    }`
+                  }
+                >
+                  <Icon className="w-5 h-5" strokeWidth={1.7} />
+                  {item.label}
+                </NavLink>
+              )
+            })}
+            {secondaires.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setPlusOuvert(v => !v)}
+                className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors duration-200 ${
+                  plusOuvert ? 'text-[#4F8A3D]' : 'text-gray-400'
+                }`}
               >
-                <Icon className="w-5 h-5" strokeWidth={1.7} />
-                {item.label}
-              </NavLink>
-            )
-          })}
+                <MoreHorizontal className="w-5 h-5" strokeWidth={1.7} />
+                Plus
+              </button>
+            )}
+          </div>
         </nav>
       </div>
     </div>
