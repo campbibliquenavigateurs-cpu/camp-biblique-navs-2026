@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import { usePlacesDispo } from '../hooks/usePlacesDispo'
+import GuideTailles from './GuideTailles'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Formulaire d'inscription (Phase 5)
@@ -501,7 +502,10 @@ export default function InscriptionForm() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-[#1B3B1A] mb-2">Taille de polo</label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-[#1B3B1A]">Taille de polo</label>
+                        <GuideTailles tailleSelectionnee={form.taillePolo} />
+                      </div>
                       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                         {TAILLES_POLO.map(t=>(
                           <button key={t} type="button" onClick={()=>maj('taillePolo',t)}

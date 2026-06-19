@@ -7,6 +7,7 @@ import {
   FileText,
   BarChart3,
   Settings,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -35,6 +36,7 @@ const MENU_PAR_ROLE: Record<string, ItemMenu[]> = {
     { label: 'Trésorerie', path: 'tresorerie' },
     { label: 'Logistique', path: 'logistique' },
     { label: 'Santé', path: 'sante' },
+    { label: 'Inscriptions', path: 'inscriptions' },
     { label: 'Modération', path: 'moderation' },
     { label: 'Contenus', path: 'contenus' },
     { label: 'Évaluations', path: 'evaluations' },
@@ -49,6 +51,7 @@ const ICONES_PAR_CHEMIN: Record<string, LucideIcon> = {
   tresorerie: Wallet,
   logistique: Package,
   sante: HeartPulse,
+  inscriptions: ClipboardList,
   moderation: ShieldCheck,
   contenus: FileText,
   evaluations: BarChart3,

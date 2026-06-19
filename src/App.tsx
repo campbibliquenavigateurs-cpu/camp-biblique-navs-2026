@@ -17,6 +17,7 @@ import AdminTemoignages from './components/AdminTemoignages'
 import ContenusAdmin from './components/ContenusAdmin'
 import EvaluationStats from './components/EvaluationStats'
 import ParametresAdmin from './components/ParametresAdmin'
+import GestionInscriptions from './components/GestionInscriptions'
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
             <Route path="tresorerie" element={<TresorerieDashboard />} />
             <Route path="logistique" element={<LogistiqueDashboard />} />
             <Route path="sante" element={<SanteDashboard />} />
+            <Route path="inscriptions" element={<GestionInscriptions />} />
             <Route path="moderation" element={<AdminTemoignages />} />
             <Route path="contenus" element={<ContenusAdmin />} />
             <Route path="evaluations" element={<EvaluationStats />} />
