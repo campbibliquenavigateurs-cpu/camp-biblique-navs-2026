@@ -150,6 +150,7 @@ export default function GestionInscriptions() {
   const [editId, setEditId] = useState<string | null>(null)
   const [editReduction, setEditReduction] = useState('')
   const [versementsPour, setVersementsPour] = useState<Inscription | null>(null)
+  const [confirmationSuppression, setConfirmationSuppression] = useState<string | null>(null)
 
   async function charger() {
     setChargement(true)
@@ -257,9 +258,52 @@ export default function GestionInscriptions() {
     charger()
   }
 
-  // ---- Export Excel ----
+  // Supprimer une inscription supprime aussi automatiquement ses versements
+  // (suppression en cascade définie au niveau de la base de données).
+  async function supprimerInscription(id: string) {
+    setConfirmationSuppression(null)
+    const { error } = await supabase.from('inscriptions').delete().eq('id', id)
+    if (error) { toast.erreur('Erreur lors de la suppression.'); return }
+    toast.succes('Inscription supprimée avec succès.')
+    charger()
+  }
+
+  // Lien de rappel WhatsApp pré-rempli, pour les inscriptions non soldées.
+  function lienRappelWhatsApp(l: Inscription): string {
+    const s = solde(l)
+    const message =
+      `Bonjour ${l.prenoms}, ceci est un rappel concernant votre inscription au Camp Biblique-Navs 2026. ` +
+      `Solde restant à régler : ${formatFCFA(s)}. Merci de régulariser dès que possible. ` +
+      `Mission Évangélique des Navigateurs CI.`
+    return `https://wa.me/225${l.telephone}?text=${encodeURIComponent(message)}`
+  }
+
+  // ---- Export Excel (feuille Résumé + feuille Détail) ----
   async function exporterExcel() {
     const { utils, writeFileXLSX } = await import('xlsx')
+
+    const totalDu = triees.reduce((s, l) => s + (l.montant_du ?? 0), 0)
+    const totalReduction = triees.reduce((s, l) => s + (l.reduction_accordee ?? 0), 0)
+    const totalPaye = triees.reduce((s, l) => s + (l.montant_paye ?? 0), 0)
+    const totalSolde = triees.reduce((s, l) => s + solde(l), 0)
+    const nbAdultes = triees.filter(l => l.categorie === 'Adulte/Ado 16+').length
+    const nbEnfants = triees.filter(l => l.categorie === 'Enfant/Ado 15-').length
+
+    const feuilleResume = utils.json_to_sheet([{
+      'Camp': 'Camp Biblique-Navs 2026',
+      'Généré le': new Date().toLocaleDateString('fr-FR'),
+      'Nombre total d\'inscrits': triees.length,
+      'dont Adultes/Ados 16+': nbAdultes,
+      'dont Enfants/Ados 15-': nbEnfants,
+      'En attente': stats.enAttente,
+      'Paiement partiel': stats.partiel,
+      'Soldé': stats.solde,
+      'Total dû (F CFA)': totalDu,
+      'Total réduction (F CFA)': totalReduction,
+      'Total payé (F CFA)': totalPaye,
+      'Total solde restant (F CFA)': totalSolde,
+    }])
+
     const donnees = triees.map(l => ({
       Nom: l.nom, Prénoms: l.prenoms, Genre: l.genre ?? '', Catégorie: l.categorie ?? '',
       Téléphone: l.telephone, Ville: l.ville ?? '', 'Commune/Quartier': l.commune_quartier ?? '',
@@ -270,35 +314,55 @@ export default function GestionInscriptions() {
       Statut: statutBadge(solde(l), l.montant_paye ?? 0).label,
       "Date d'inscription": new Date(l.date_inscription).toLocaleDateString('fr-FR'),
     }))
-    const feuille = utils.json_to_sheet(donnees)
-    feuille['!cols'] = Object.keys(donnees[0] || {}).map(() => ({ wch: 18 }))
+    const feuilleDetail = utils.json_to_sheet(donnees)
+    feuilleDetail['!cols'] = Object.keys(donnees[0] || {}).map(() => ({ wch: 18 }))
+
     const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, feuille, 'Inscriptions')
+    utils.book_append_sheet(classeur, feuilleResume, 'Résumé')
+    utils.book_append_sheet(classeur, feuilleDetail, 'Inscriptions')
     writeFileXLSX(classeur, `inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  // ---- Export PDF (émargement) ----
+  // ---- Export PDF (résumé financier + émargement) ----
   async function exporterPDF() {
     const { default: jsPDF } = await import('jspdf')
     const autoTable = (await import('jspdf-autotable')).default
     const doc = new jsPDF()
+
+    const totalDu = triees.reduce((s, l) => s + (l.montant_du ?? 0), 0)
+    const totalPaye = triees.reduce((s, l) => s + (l.montant_paye ?? 0), 0)
+    const totalSolde = triees.reduce((s, l) => s + solde(l), 0)
+
     doc.setFontSize(13)
     doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
     doc.setFontSize(11)
-    doc.text("Liste d'émargement — Camp Biblique-Navs 2026", 14, 22)
+    doc.text('Rapport des inscriptions — Camp Biblique-Navs 2026', 14, 22)
     doc.setFontSize(9)
     doc.text('23 – 29 août 2026 · La Sablière, Bingerville', 14, 28)
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 33)
-    const lignesTriees = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} · ${triees.length} inscrit(s)`, 14, 33)
+
     autoTable(doc, {
       startY: 40,
+      head: [['Indicateur', 'Valeur']],
+      body: [
+        ['Total dû', formatFCFA(totalDu)],
+        ['Total payé', formatFCFA(totalPaye)],
+        ['Total solde restant', formatFCFA(totalSolde)],
+        ['En attente / Partiel / Soldé', `${stats.enAttente} / ${stats.partiel} / ${stats.solde}`],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [27, 59, 26] },
+    })
+
+    const lignesTriees = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
+    autoTable(doc, {
       head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', 'Signature']],
       body: lignesTriees.map((l, i) => [String(i + 1), l.nom, l.prenoms, l.categorie ?? '', l.telephone, '']),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [27, 59, 26] },
       columnStyles: { 5: { cellWidth: 35 } },
     })
-    doc.save(`emargement_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+    doc.save(`rapport_inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
   if (statutAcces === 'verification') {
@@ -429,7 +493,7 @@ export default function GestionInscriptions() {
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-xs">{new Date(l.date_inscription).toLocaleDateString('fr-FR')}</td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                           {enEdition ? (
                             <>
                               <button type="button" onClick={() => enregistrerReduction(l.id)} className="text-xs font-semibold text-[#4F8A3D] hover:underline">Enregistrer</button>
@@ -439,6 +503,24 @@ export default function GestionInscriptions() {
                             <button type="button" onClick={() => ouvrirEditionReduction(l)} className="text-xs font-semibold text-[#5B7A56] hover:underline">Réduction</button>
                           )}
                           <button type="button" onClick={() => setVersementsPour(l)} className="text-xs font-semibold text-[#1B3B1A] hover:underline">Versements</button>
+                          {s > 0 && (
+                            <a href={lienRappelWhatsApp(l)} target="_blank" rel="noopener noreferrer" title="Envoyer un rappel WhatsApp" className="text-[#4F8A3D] hover:text-[#3F7530]">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.94.55 3.76 1.5 5.31L2 22l4.94-1.6a9.84 9.84 0 005.1 1.4h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2zm5.78 14.02c-.25.7-1.45 1.36-1.98 1.43-.5.07-1.13.1-1.83-.12-.42-.13-.96-.31-1.65-.6-2.9-1.25-4.78-4.17-4.93-4.37-.14-.2-1.18-1.57-1.18-2.99 0-1.42.74-2.12 1-2.41.26-.29.57-.36.76-.36.19 0 .38 0 .55.01.18.01.41-.07.64.49.25.6.83 2.07.9 2.22.07.15.12.33.02.53-.1.2-.15.32-.3.49-.15.17-.31.38-.44.5-.15.14-.3.29-.13.57.18.28.79 1.31 1.7 2.12 1.17 1.04 2.16 1.37 2.47 1.52.31.15.49.13.67-.05.18-.18.78-.9.99-1.21.21-.31.42-.26.7-.16.28.1 1.79.84 2.1.99.31.15.51.23.59.36.08.13.08.74-.17 1.44z" />
+                              </svg>
+                            </a>
+                          )}
+                          {confirmationSuppression === l.id ? (
+                            <button type="button" onClick={() => supprimerInscription(l.id)} className="text-xs font-bold text-white bg-[#B3492F] px-2 py-1 rounded-md">
+                              Confirmer ?
+                            </button>
+                          ) : (
+                            <button type="button" onClick={() => setConfirmationSuppression(l.id)} title="Supprimer" className="text-[#B3492F] hover:text-[#8a3722]">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
