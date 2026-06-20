@@ -35,6 +35,15 @@ function statutBadge(solde: number, montantPaye: number) {
   return { label: 'En attente', bg: 'bg-gray-100', text: 'text-gray-500' }
 }
 
+// Traduit la valeur technique stockée en base (utilisée par le trigger
+// anti-fraude de calcul de catégorie) en libellé convivial à l'affichage
+// uniquement. La donnée réelle en base n'est jamais modifiée.
+function libelleCategorie(categorie: string | null): string {
+  if (categorie === 'Adulte/Ado 16+') return 'Jeune/Adulte'
+  if (categorie === 'Enfant/Ado 15-') return 'Enfant/Ado'
+  return categorie ?? '—'
+}
+
 const champBase = 'w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4F8A3D] focus:border-transparent'
 
 type Etape = 'recherche' | 'selection' | 'resultat' | 'aucun'
@@ -203,7 +212,7 @@ export default function MonInscription() {
             </div>
             <div className="divide-y divide-[#E7F2DE]">
               {[
-                { label: 'Catégorie', valeur: resultat.categorie ?? '—' },
+                { label: 'Catégorie', valeur: libelleCategorie(resultat.categorie) },
                 { label: 'Taille de polo', valeur: resultat.taille_polo ?? '—' },
                 { label: 'Montant total dû', valeur: formatFCFA(resultat.montant_du ?? 0) },
                 ...(resultat.reduction_accordee > 0

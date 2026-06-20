@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import { usePlacesDispo } from '../hooks/usePlacesDispo'
@@ -62,6 +63,14 @@ function normaliserTelephone(val:string): string {
   let c = val.replace(/\D/g,'')
   if(c.startsWith('225')&&c.length>10) c=c.slice(-10)
   return c
+}
+
+// Formatage purement visuel pendant la saisie (espacement par paires de
+// chiffres) — la normalisation réelle (normaliserTelephone ci-dessus)
+// reste appliquée à la soumission, indépendamment de ce formatage.
+function formaterTelephoneAffichage(valeur: string): string {
+  const chiffres = valeur.replace(/\D/g, '').slice(0, 13)
+  return chiffres.replace(/(\d{2})(?=\d)/g, '$1 ')
 }
 
 // ---- Illustrations SVG ----
@@ -163,6 +172,8 @@ export default function InscriptionForm() {
   const [doublonDetecte, setDoublonDetecte] = useState(false)
   const [consultationResultat, setConsultationResultat] = useState<ResultatConsultation|null>(null)
   const [consultationErreur, setConsultationErreur] = useState('')
+  const [pasAntecedents, setPasAntecedents] = useState(false)
+  const [recapVisible, setRecapVisible] = useState(false)
   const totalEtapes = 4
 
   const Illustration = ILLUSTRATIONS[etape - 1]
@@ -258,9 +269,16 @@ export default function InscriptionForm() {
         </div>
         <h2 className="text-xl font-bold text-[#1B3B1A] mb-2">Bienvenue, {form.prenoms} !</h2>
         <p className="text-gray-600 text-sm mb-4">
-          Votre inscription au Camp Biblique-Navs 2026 a bien été enregistrée.
-          Le comité vous contactera pour la suite du processus de paiement.
+          Votre inscription au Camp Biblique-Navs 2026 a bien été enregistrée. Vous pouvez suivre l'avancement
+          de votre paiement à tout moment depuis la page « Mon inscription », et régler votre participation
+          par Wave ou Orange Money auprès de l'équipe trésorerie.
         </p>
+        <Link
+          to="/preparation"
+          className="inline-block text-sm font-semibold text-[#4F8A3D] hover:underline mb-4"
+        >
+          Comment se préparer pour le camp →
+        </Link>
         <div className="bg-[#F4F9F0] rounded-xl p-4 text-sm italic text-[#4F8A3D]">
           « L'un des deux qui avaient entendu les paroles de Jean et qui avaient suivi Jésus, était André, frère de Simon Pierre. Il trouva d'abord Simon, son propre frère, et lui dit : "Nous avons trouvé le Messie." »
           <p className="text-xs text-gray-400 mt-2 not-italic">Jean 1 : 40-41</p>
@@ -298,10 +316,63 @@ export default function InscriptionForm() {
             <p><span className="text-gray-500">Montant payé : </span><span className="font-semibold text-[#1B3B1A]">{(consultationResultat.montant_paye||0).toLocaleString('fr-FR')+' F CFA'}</span></p>
           </div>
         )}
-        <button type="button" onClick={()=>{setDoublonDetecte(false);setConsultationResultat(null);setConsultationErreur('')}}
+        <button type="button" onClick={()=>{setDoublonDetecte(false);setRecapVisible(false);setConsultationResultat(null);setConsultationErreur('')}}
           className="text-sm text-[#5B7A56] hover:underline">
           Modifier mes informations
         </button>
+      </div>
+    </div>
+  )
+
+  if(recapVisible) return (
+    <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
+      <div className="max-w-md mx-auto">
+        <h2 className="text-xl font-bold text-[#1B3B1A] mb-1 text-center">Vérifiez vos informations</h2>
+        <p className="text-sm text-gray-500 text-center mb-5">Relisez attentivement avant de confirmer définitivement</p>
+
+        <div className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm overflow-hidden">
+          <div className="divide-y divide-[#E7F2DE] text-sm">
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-gray-500">Nom complet</span>
+              <span className="font-semibold text-[#1B3B1A]">{form.prenoms} {form.nom}</span>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-gray-500">Catégorie</span>
+              <span className="font-semibold text-[#1B3B1A]">{form.categorieChoix==='enfant'?'Enfant/Ado':'Jeune/Adulte'}</span>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-gray-500">Téléphone</span>
+              <span className="font-semibold text-[#1B3B1A]">{form.telephone}</span>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-gray-500">Ville</span>
+              <span className="font-semibold text-[#1B3B1A]">{form.ville}</span>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-gray-500">Taille de polo</span>
+              <span className="font-semibold text-[#1B3B1A]">{form.taillePolo}</span>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-gray-500">Contact d'urgence</span>
+              <span className="font-semibold text-[#1B3B1A]">{form.contactUrgenceNom} · {form.contactUrgenceTelephone}</span>
+            </div>
+            <div className="flex items-center justify-between px-5 py-4 bg-[#F4F9F0]">
+              <span className="font-bold text-[#1B3B1A]">Montant à payer</span>
+              <span className="font-bold text-[#1B3B1A]">{formatFCFA(montantAPayer)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button type="button" onClick={()=>setRecapVisible(false)}
+            className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-white">
+            Modifier
+          </button>
+          <button type="button" onClick={soumettre} disabled={envoiEnCours}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors duration-200 ${!envoiEnCours?'bg-[#4F8A3D] hover:bg-[#3F7530]':'bg-gray-300 cursor-not-allowed'}`}>
+            {envoiEnCours?'Vérification...':"Confirmer l'inscription"}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -459,7 +530,7 @@ export default function InscriptionForm() {
 
                     <div>
                       <label className="block text-sm font-medium text-[#1B3B1A] mb-1">Numéro de téléphone</label>
-                      <input type="tel" value={form.telephone} onChange={e=>maj('telephone',e.target.value)}
+                      <input type="tel" value={form.telephone} onChange={e=>maj('telephone',formaterTelephoneAffichage(e.target.value))}
                         className={`${champBase} ${telValide(form.telephone)?'champ-ok':''}`} placeholder="Ex : 07 00 00 00 00"/>
                       {form.telephone!==''&&!telValide(form.telephone)&&(
                         <p className="text-xs text-[#B3492F] mt-1">Numéro invalide — 10 chiffres attendus</p>
@@ -524,9 +595,24 @@ export default function InscriptionForm() {
 
                     <div>
                       <label className="block text-sm font-medium text-[#1B3B1A] mb-1">Antécédents médicaux</label>
-                      <textarea value={form.antecedentsMedicaux} onChange={e=>maj('antecedentsMedicaux',e.target.value)}
-                        rows={3} className={`${champBase} ${form.antecedentsMedicaux.trim()!==''?'champ-ok':''}`}
-                        placeholder="Écrire « Aucun » si pas d'antécédents"/>
+                      <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pasAntecedents}
+                          onChange={e => {
+                            const v = e.target.checked
+                            setPasAntecedents(v)
+                            maj('antecedentsMedicaux', v ? 'Aucun' : '')
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-[#4F8A3D] focus:ring-[#4F8A3D]"
+                        />
+                        <span className="text-sm text-gray-600">Aucun antécédent médical</span>
+                      </label>
+                      {!pasAntecedents && (
+                        <textarea value={form.antecedentsMedicaux} onChange={e=>maj('antecedentsMedicaux',e.target.value)}
+                          rows={3} className={`${champBase} ${form.antecedentsMedicaux.trim()!==''?'champ-ok':''}`}
+                          placeholder="Ex : allergie, traitement en cours..."/>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
@@ -576,7 +662,7 @@ export default function InscriptionForm() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-[#1B3B1A] mb-1">Téléphone</label>
-                          <input type="tel" value={form.contactUrgenceTelephone} onChange={e=>maj('contactUrgenceTelephone',e.target.value)}
+                          <input type="tel" value={form.contactUrgenceTelephone} onChange={e=>maj('contactUrgenceTelephone',formaterTelephoneAffichage(e.target.value))}
                             className={`${champBase} ${telValide(form.contactUrgenceTelephone)?'champ-ok':''}`} placeholder="Ex : 05 00 00 00 00"/>
                           {form.contactUrgenceTelephone!==''&&!telValide(form.contactUrgenceTelephone)&&(
                             <p className="text-xs text-[#B3492F] mt-1">Numéro invalide — 10 chiffres attendus</p>
@@ -601,9 +687,9 @@ export default function InscriptionForm() {
                     Suivant
                   </button>
                 ):(
-                  <button type="button" onClick={soumettre} disabled={!etape4Valide||envoiEnCours}
-                    className={`px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors duration-200 ${etape4Valide&&!envoiEnCours?'bg-[#4F8A3D] hover:bg-[#3F7530]':'bg-gray-300 cursor-not-allowed'}`}>
-                    {envoiEnCours?'Vérification...':'Confirmer l\'inscription'}
+                  <button type="button" onClick={()=>setRecapVisible(true)} disabled={!etape4Valide}
+                    className={`px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors duration-200 ${etape4Valide?'bg-[#4F8A3D] hover:bg-[#3F7530]':'bg-gray-300 cursor-not-allowed'}`}>
+                    Vérifier mes informations
                   </button>
                 )}
               </div>

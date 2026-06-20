@@ -10,6 +10,7 @@ import DocumentsPublic from './components/DocumentsPublic'
 import Temoignages from './components/Temoignages'
 import EvaluationForm from './components/EvaluationForm'
 import MonInscription from './components/MonInscription'
+import PreparationCamp from './components/PreparationCamp'
 import TresorerieDashboard from './components/TresorerieDashboard'
 import LogistiqueDashboard from './components/LogistiqueDashboard'
 import SanteDashboard from './components/SanteDashboard'
@@ -28,6 +29,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="inscription" element={<InscriptionForm />} />
             <Route path="mon-inscription" element={<MonInscription />} />
+            <Route path="preparation" element={<PreparationCamp />} />
             <Route path="annonces" element={<AnnoncesPublic />} />
             <Route path="louange" element={<ChantsPublic />} />
             <Route path="ressources" element={<DocumentsPublic />} />
