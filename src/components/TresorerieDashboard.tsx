@@ -38,6 +38,7 @@ interface LigneTresorerie {
   id: string
   type: 'entree' | 'sortie'
   categorie: string
+  nom_partie: string | null
   detail: string
   montant: number
   date_mouvement: string
@@ -60,11 +61,9 @@ interface DonNature {
 }
 
 interface Resume {
-  total_entrees: number
+  total_entrees_hors_subvention: number
   total_sorties: number
-  solde: number
   objectif_budget: number
-  taux_atteinte: number
   total_frais_participation: number
 }
 
@@ -255,7 +254,7 @@ function ModaleDonNature({ donnee, commissions, onFermer, onSauvegarde }: {
       ? await supabase.from('dons_nature').update(payload).eq('id', donnee.id)
       : await supabase.from('dons_nature').insert(payload)
     setEnvoi(false)
-    if (error) { toast.erreur("Erreur lors de l'enregistrement."); return }
+    if (error) { toast.erreur("Erreur lors de l'enregistrement."); console.error(error); return }
     toast.succes(donnee ? 'Don en nature mis à jour !' : 'Don en nature ajouté !')
     onSauvegarde()
     onFermer()
@@ -329,9 +328,9 @@ function ModaleDonateur({ donnee, onFermer, onSauvegarde }: {
   onSauvegarde: () => void
 }) {
   const toast = useToast()
-  const [nom, setNom] = useState(donnee ? donnee.detail.split(' — ')[0] ?? '' : '')
+  const [nom, setNom] = useState(donnee?.nom_partie ?? '')
   const [type, setType] = useState(donnee?.categorie === 'don_externe' ? 'non_navs' : 'membre_navs')
-  const [description, setDescription] = useState(donnee ? donnee.detail.split(' — ')[1] ?? '' : '')
+  const [description, setDescription] = useState(donnee?.detail ?? '')
   const [montant, setMontant] = useState(donnee ? String(donnee.montant) : '')
   const [date, setDate] = useState(donnee ? donnee.date_mouvement.slice(0, 10) : new Date().toISOString().slice(0, 10))
   const [envoi, setEnvoi] = useState(false)
@@ -344,7 +343,8 @@ function ModaleDonateur({ donnee, onFermer, onSauvegarde }: {
     const payload = {
       type: 'entree' as const,
       categorie: type === 'membre_navs' ? 'don_interne' : 'don_externe',
-      detail: `${nom.trim()} — ${description.trim()}`,
+      nom_partie: nom.trim(),
+      detail: description.trim(),
       montant: Number(montant),
       date_mouvement: date,
     }
@@ -352,7 +352,7 @@ function ModaleDonateur({ donnee, onFermer, onSauvegarde }: {
       ? await supabase.from('tresorerie').update(payload).eq('id', donnee.id)
       : await supabase.from('tresorerie').insert(payload)
     setEnvoi(false)
-    if (error) { toast.erreur("Erreur lors de l'enregistrement."); return }
+    if (error) { toast.erreur("Erreur lors de l'enregistrement."); console.error(error); return }
     toast.succes(donnee ? 'Don mis à jour !' : 'Don enregistré !')
     onSauvegarde()
     onFermer()
@@ -406,8 +406,8 @@ function ModaleBoutique({ donnee, onFermer, onSauvegarde }: {
   onSauvegarde: () => void
 }) {
   const toast = useToast()
-  const [acheteur, setAcheteur] = useState(donnee ? donnee.detail.split(' - ')[1] ?? '' : '')
-  const [designation, setDesignation] = useState(donnee ? donnee.detail.split(' - ')[0] ?? '' : '')
+  const [acheteur, setAcheteur] = useState(donnee?.nom_partie ?? '')
+  const [designation, setDesignation] = useState(donnee?.detail ?? '')
   const [quantite, setQuantite] = useState(donnee ? String(donnee.quantite ?? '') : '')
   const [prixUnitaire, setPrixUnitaire] = useState(donnee ? String(donnee.prix_unitaire ?? '') : '')
   const [date, setDate] = useState(donnee ? donnee.date_mouvement.slice(0, 10) : new Date().toISOString().slice(0, 10))
@@ -422,7 +422,8 @@ function ModaleBoutique({ donnee, onFermer, onSauvegarde }: {
     const payload = {
       type: 'entree' as const,
       categorie: 'vente_gadgets',
-      detail: `${designation.trim()} - ${acheteur.trim()}`,
+      nom_partie: acheteur.trim(),
+      detail: designation.trim(),
       montant: montantTotal,
       quantite: Number(quantite),
       prix_unitaire: Number(prixUnitaire),
@@ -432,7 +433,7 @@ function ModaleBoutique({ donnee, onFermer, onSauvegarde }: {
       ? await supabase.from('tresorerie').update(payload).eq('id', donnee.id)
       : await supabase.from('tresorerie').insert(payload)
     setEnvoi(false)
-    if (error) { toast.erreur("Erreur lors de l'enregistrement."); return }
+    if (error) { toast.erreur("Erreur lors de l'enregistrement."); console.error(error); return }
     toast.succes(donnee ? 'Vente mise à jour !' : 'Vente enregistrée !')
     onSauvegarde()
     onFermer()
@@ -485,8 +486,8 @@ function ModaleAutreRevenu({ donnee, onFermer, onSauvegarde }: {
   onSauvegarde: () => void
 }) {
   const toast = useToast()
-  const [source, setSource] = useState(donnee ? donnee.detail.split(' : ')[0] ?? '' : '')
-  const [description, setDescription] = useState(donnee ? donnee.detail.split(' : ')[1] ?? '' : '')
+  const [source, setSource] = useState(donnee?.nom_partie ?? '')
+  const [description, setDescription] = useState(donnee?.detail ?? '')
   const [montant, setMontant] = useState(donnee ? String(donnee.montant) : '')
   const [date, setDate] = useState(donnee ? donnee.date_mouvement.slice(0, 10) : new Date().toISOString().slice(0, 10))
   const [envoi, setEnvoi] = useState(false)
@@ -499,7 +500,8 @@ function ModaleAutreRevenu({ donnee, onFermer, onSauvegarde }: {
     const payload = {
       type: 'entree' as const,
       categorie: 'autre',
-      detail: `${source.trim()} : ${description.trim()}`,
+      nom_partie: source.trim(),
+      detail: description.trim(),
       montant: Number(montant),
       date_mouvement: date,
     }
@@ -507,7 +509,7 @@ function ModaleAutreRevenu({ donnee, onFermer, onSauvegarde }: {
       ? await supabase.from('tresorerie').update(payload).eq('id', donnee.id)
       : await supabase.from('tresorerie').insert(payload)
     setEnvoi(false)
-    if (error) { toast.erreur("Erreur lors de l'enregistrement."); return }
+    if (error) { toast.erreur("Erreur lors de l'enregistrement."); console.error(error); return }
     toast.succes(donnee ? 'Revenu mis à jour !' : 'Revenu enregistré !')
     onSauvegarde()
     onFermer()
@@ -624,11 +626,17 @@ export default function TresorerieDashboard() {
   const { statutAcces, verifierAcces } = useAccesRole(ROLES_TRESORERIE)
   const toast = useToast()
 
+  const [onglet, setOnglet] = useState<'synthese' | 'commissions' | 'mobilisation' | 'dons'>('synthese')
+
   const [resume, setResume] = useState<Resume | null>(null)
   const [commissions, setCommissions] = useState<Commission[]>([])
   const [lignesTresorerie, setLignesTresorerie] = useState<LigneTresorerie[]>([])
   const [donsNature, setDonsNature] = useState<DonNature[]>([])
   const [chargement, setChargement] = useState(true)
+
+  const [budgetGlobalSaisie, setBudgetGlobalSaisie] = useState('')
+  const [budgetGlobalModifie, setBudgetGlobalModifie] = useState(false)
+  const [envoiBudget, setEnvoiBudget] = useState(false)
 
   const [pageCommissions, setPageCommissions] = useState(1)
   const [pageMobilisation, setPageMobilisation] = useState(1)
@@ -637,7 +645,7 @@ export default function TresorerieDashboard() {
 
   const [confirmationId, setConfirmationId] = useState<string | null>(null)
 
-  // Modales : chaque entrée null = fermée ; objet vide-ish {} via "nouveau" = ouverte en mode ajout
+  // Modales : chaque entrée null = fermée ; "nouveau" = ouverte en mode ajout
   const [modaleCommission, setModaleCommission] = useState<Commission | 'nouveau' | null>(null)
   const [modaleDonNature, setModaleDonNature] = useState<DonNature | 'nouveau' | null>(null)
   const [modaleDonateur, setModaleDonateur] = useState<LigneTresorerie | 'nouveau' | null>(null)
@@ -653,19 +661,51 @@ export default function TresorerieDashboard() {
       supabase.from('tresorerie').select('*').order('date_mouvement', { ascending: false }),
       supabase.from('dons_nature').select('*').order('date_reception', { ascending: false }),
     ])
-    if (resResume.data && resResume.data.length > 0) setResume(resResume.data[0] as Resume)
+    if (resResume.data && resResume.data.length > 0) {
+      const r = resResume.data[0] as Resume
+      setResume(r)
+      if (!budgetGlobalModifie) setBudgetGlobalSaisie(String(r.objectif_budget ?? 0))
+    }
     if (resCommissions.data) setCommissions(resCommissions.data as Commission[])
     if (resTresorerie.data) setLignesTresorerie(resTresorerie.data as LigneTresorerie[])
     if (resDons.data) setDonsNature(resDons.data as DonNature[])
     setChargement(false)
-  }, [])
+  }, [budgetGlobalModifie])
 
   useEffect(() => {
     if (statutAcces === 'autorise') charger()
-  }, [statutAcces, charger])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statutAcces])
 
+  // ---- Logique Budget Global & Subvention automatique ----
+  // Ressources hors subvention = Frais de participation + Dons Navs/Non-Navs
+  // + Boutique + Solde antérieur/Autres revenus (déjà sommés côté SQL).
+  // Si ce total est inférieur au budget prévu, la subvention comble l'écart ;
+  // sinon elle retombe automatiquement à 0.
+  const ressourcesHorsSubvention = resume?.total_entrees_hors_subvention ?? 0
+  const objectifBudget = resume?.objectif_budget ?? 0
+  const subventionAuto = Math.max(0, objectifBudget - ressourcesHorsSubvention)
+  const totalEntreesFinal = ressourcesHorsSubvention + subventionAuto
+  const totalSorties = resume?.total_sorties ?? 0
+  const soldeGlobal = totalEntreesFinal - totalSorties
+  const tauxAtteinte = objectifBudget > 0 ? (totalEntreesFinal / objectifBudget) * 100 : 0
+
+  async function enregistrerBudgetGlobal() {
+    const valeur = Number(budgetGlobalSaisie)
+    if (!Number.isFinite(valeur) || valeur < 0) { toast.erreur('Montant invalide.'); return }
+    setEnvoiBudget(true)
+    const { error } = await supabase.from('parametres_camp').update({ valeur }).eq('cle', 'budget_global')
+    setEnvoiBudget(false)
+    if (error) { toast.erreur("Erreur lors de l'enregistrement."); return }
+    toast.succes('Budget global mis à jour !')
+    setBudgetGlobalModifie(false)
+    charger()
+  }
+
+  // "Mobilisation des fonds" ne couvre plus que Donateurs/Boutique/Autres
+  // revenus — les Dons en nature ont désormais leur propre onglet.
   const mobilisationLignes = useMemo(
-    () => lignesTresorerie.filter(l => l.type === 'entree' && l.categorie !== 'participation'),
+    () => lignesTresorerie.filter(l => l.type === 'entree' && l.categorie !== 'participation' && l.categorie !== 'subvention'),
     [lignesTresorerie]
   )
   const depensesLignes = useMemo(() => lignesTresorerie.filter(l => l.type === 'sortie'), [lignesTresorerie])
@@ -699,12 +739,14 @@ export default function TresorerieDashboard() {
     const { utils, writeFileXLSX } = await import('xlsx')
 
     const feuilleSynthese = utils.json_to_sheet([{
-      'Total entrées (F CFA)': resume?.total_entrees ?? 0,
+      'Budget Global Prévu (F CFA)': objectifBudget,
+      'Total ressources hors subvention (F CFA)': ressourcesHorsSubvention,
       'dont Frais de participation (F CFA)': resume?.total_frais_participation ?? 0,
-      'Total sorties (F CFA)': resume?.total_sorties ?? 0,
-      'Solde (F CFA)': resume?.solde ?? 0,
-      'Objectif budgétaire (F CFA)': resume?.objectif_budget ?? 0,
-      "Taux d'atteinte (%)": resume?.taux_atteinte ? Math.round(resume.taux_atteinte * 10) / 10 : 0,
+      'Subvention du Ministère (F CFA)': subventionAuto,
+      'Total entrées (F CFA)': totalEntreesFinal,
+      'Total sorties (F CFA)': totalSorties,
+      'Solde (F CFA)': soldeGlobal,
+      "Taux d'atteinte (%)": Math.round(tauxAtteinte * 10) / 10,
     }])
 
     const { data: inscriptions } = await supabase
@@ -766,11 +808,12 @@ export default function TresorerieDashboard() {
       startY: 35,
       head: [['Indicateur', 'Montant']],
       body: [
-        ['Total entrées', formatFCFA(resume?.total_entrees ?? 0)],
+        ['Budget Global Prévu', formatFCFA(objectifBudget)],
         ['dont Frais de participation', formatFCFA(resume?.total_frais_participation ?? 0)],
-        ['Total sorties', formatFCFA(resume?.total_sorties ?? 0)],
-        ['Solde', formatFCFA(resume?.solde ?? 0)],
-        ['Objectif budgétaire', formatFCFA(resume?.objectif_budget ?? 0)],
+        ['Subvention du Ministère (automatique)', formatFCFA(subventionAuto)],
+        ['Total entrées', formatFCFA(totalEntreesFinal)],
+        ['Total sorties', formatFCFA(totalSorties)],
+        ['Solde', formatFCFA(soldeGlobal)],
       ],
       styles: { fontSize: 9 },
       headStyles: { fillColor: [27, 59, 26] },
@@ -796,9 +839,16 @@ export default function TresorerieDashboard() {
   if (statutAcces === 'non_connecte') return <Login onConnecte={verifierAcces} />
   if (statutAcces === 'refuse') return <AccesRestreint message="Ce module est réservé à l'équipe trésorerie." />
 
+  const ONGLETS: { cle: typeof onglet; label: string }[] = [
+    { cle: 'synthese', label: 'Synthèse Globale & Budget' },
+    { cle: 'commissions', label: '17 Commissions' },
+    { cle: 'mobilisation', label: 'Mobilisation des Fonds' },
+    { cle: 'dons', label: 'Dons en Nature' },
+  ]
+
   return (
     <div className="min-h-screen bg-[#F4F9F0] py-6 px-4">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-5">
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-[#1B3B1A]">Trésorerie &amp; Commissions</h1>
@@ -812,213 +862,300 @@ export default function TresorerieDashboard() {
           </div>
         </div>
 
-        {/* KPI */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <CarteKPI label="Solde global" valeur={chargement ? '—' : formatFCFA(resume?.solde ?? 0)} accent="text-[#4F8A3D]" />
-          <CarteKPI label="Total entrées" valeur={chargement ? '—' : formatFCFA(resume?.total_entrees ?? 0)} />
-          <CarteKPI label="Total sorties" valeur={chargement ? '—' : formatFCFA(resume?.total_sorties ?? 0)} accent="text-[#B3492F]" />
-          <CarteKPI label="Taux d'atteinte budget" valeur={chargement ? '—' : `${Math.round((resume?.taux_atteinte ?? 0) * 10) / 10}%`} accent="text-[#D9A441]" />
+        {/* Onglets horizontaux */}
+        <div className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm overflow-x-auto">
+          <div className="flex">
+            {ONGLETS.map(o => (
+              <button
+                key={o.cle}
+                type="button"
+                onClick={() => setOnglet(o.cle)}
+                className={`flex-1 whitespace-nowrap px-4 py-3 text-sm font-semibold transition-colors duration-200 border-b-2 ${
+                  onglet === o.cle ? 'border-[#4F8A3D] text-[#1B3B1A] bg-[#F4F9F0]' : 'border-transparent text-gray-400 hover:text-[#1B3B1A]'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="text-xs text-gray-400 -mt-2">
-          dont {formatFCFA(resume?.total_frais_participation ?? 0)} de frais de participation (somme des versements des campeurs, calculée automatiquement)
-        </p>
 
-        {/* Section Commissions */}
-        <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7F2DE]">
-            <p className="text-sm font-bold text-[#1B3B1A]">Commissions</p>
-            <button type="button" onClick={() => setModaleCommission('nouveau')} className="text-xs font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] px-3 py-1.5 rounded-lg">
-              + Ajouter
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead>
-                <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
-                  <th className="px-4 py-2.5 font-medium">Commission</th>
-                  <th className="px-4 py-2.5 font-medium">Responsable</th>
-                  <th className="px-4 py-2.5 font-medium">Téléphone</th>
-                  <th className="px-4 py-2.5 font-medium">Budget initial</th>
-                  <th className="px-4 py-2.5 font-medium">Budget réel</th>
-                  <th className="px-4 py-2.5 font-medium">Dépenses</th>
-                  <th className="px-4 py-2.5 font-medium">Solde restant</th>
-                  <th className="px-4 py-2.5 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E7F2DE]">
-                {commissions.length === 0 ? (
-                  <tr><td colSpan={8} className="px-4 py-5 text-center text-gray-400">Aucune commission enregistrée.</td></tr>
-                ) : paginer(commissions, pageCommissions).map(c => (
-                  <tr key={c.id} className="text-[#1B3B1A]">
-                    <td className="px-4 py-2.5 font-medium">{c.nom}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{c.nom_responsable ?? '—'}</td>
-                    <td className="px-4 py-2.5">
-                      {c.telephone_responsable ? <a href={`tel:+225${c.telephone_responsable}`} className="text-[#4F8A3D] hover:underline">{c.telephone_responsable}</a> : '—'}
-                    </td>
-                    <td className="px-4 py-2.5">{formatFCFA(c.budget_initial)}</td>
-                    <td className="px-4 py-2.5">{formatFCFA(c.budget_reel_decaissable)}</td>
-                    <td className="px-4 py-2.5">{formatFCFA(c.cumul_depenses)}</td>
-                    <td className={`px-4 py-2.5 font-semibold ${c.solde_restant < 0 ? 'text-[#B3492F]' : ''}`}>{formatFCFA(c.solde_restant)}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <BoutonModifier onClick={() => setModaleCommission(c)} />
-                        <BoutonSupprimer id={c.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('commissions', c.id)} />
-                      </div>
-                    </td>
+        {/* ============================================================ */}
+        {/* Onglet 1 — Synthèse Globale & Budget */}
+        {/* ============================================================ */}
+        {onglet === 'synthese' && (
+          <>
+            <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
+              <p className="text-sm font-bold text-[#1B3B1A] mb-3">Budget Global Prévu</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  type="number"
+                  min={0}
+                  value={budgetGlobalSaisie}
+                  onChange={e => { setBudgetGlobalSaisie(e.target.value); setBudgetGlobalModifie(true) }}
+                  className="w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F8A3D]"
+                  placeholder="Ex : 5000000"
+                />
+                <button
+                  type="button"
+                  onClick={enregistrerBudgetGlobal}
+                  disabled={envoiBudget}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] disabled:bg-gray-300"
+                >
+                  {envoiBudget ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+                <span className="text-xs text-gray-400">Sert de référence pour le calcul automatique de la subvention du ministère.</span>
+              </div>
+            </section>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <CarteKPI label="Solde global" valeur={chargement ? '—' : formatFCFA(soldeGlobal)} accent="text-[#4F8A3D]" />
+              <CarteKPI label="Total entrées" valeur={chargement ? '—' : formatFCFA(totalEntreesFinal)} />
+              <CarteKPI label="Total sorties" valeur={chargement ? '—' : formatFCFA(totalSorties)} accent="text-[#B3492F]" />
+              <CarteKPI label="Taux d'atteinte budget" valeur={chargement ? '—' : `${Math.round(tauxAtteinte * 10) / 10}%`} accent="text-[#D9A441]" />
+            </div>
+
+            <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
+              <p className="text-sm font-bold text-[#1B3B1A] mb-3">Détail des recettes</p>
+              <div className="divide-y divide-[#E7F2DE] text-sm">
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-gray-500">Frais de participation (versements campeurs)</span>
+                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(resume?.total_frais_participation ?? 0)}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-gray-500">Dons, boutique, autres revenus (hors dons en nature)</span>
+                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(ressourcesHorsSubvention - (resume?.total_frais_participation ?? 0))}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-gray-500">Total ressources hors subvention</span>
+                  <span className="font-semibold text-[#1B3B1A]">{formatFCFA(ressourcesHorsSubvention)}</span>
+                </div>
+                <div className={`flex items-center justify-between py-2.5 ${subventionAuto > 0 ? 'bg-[#D9A441]/10 -mx-5 px-5' : ''}`}>
+                  <span className="text-gray-500">Subvention du Ministère (calculée automatiquement)</span>
+                  <span className={`font-bold ${subventionAuto > 0 ? 'text-[#8A6A23]' : 'text-gray-400'}`}>{formatFCFA(subventionAuto)}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="font-bold text-[#1B3B1A]">Total entrées</span>
+                  <span className="font-bold text-[#1B3B1A]">{formatFCFA(totalEntreesFinal)}</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                {subventionAuto > 0
+                  ? `Le total des ressources mobilisées n'atteint pas le budget prévu : la subvention comble automatiquement l'écart de ${formatFCFA(subventionAuto)}.`
+                  : 'Le budget prévu est déjà couvert par les ressources mobilisées : aucune subvention nécessaire.'}
+              </p>
+            </section>
+          </>
+        )}
+
+        {/* ============================================================ */}
+        {/* Onglet 2 — 17 Commissions (budgets + dépenses) */}
+        {/* ============================================================ */}
+        {onglet === 'commissions' && (
+          <>
+            <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7F2DE]">
+                <p className="text-sm font-bold text-[#1B3B1A]">Commissions</p>
+                <button type="button" onClick={() => setModaleCommission('nouveau')} className="text-xs font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] px-3 py-1.5 rounded-lg">
+                  + Ajouter
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm whitespace-nowrap">
+                  <thead>
+                    <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
+                      <th className="px-4 py-2.5 font-medium">Commission</th>
+                      <th className="px-4 py-2.5 font-medium">Responsable</th>
+                      <th className="px-4 py-2.5 font-medium">Téléphone</th>
+                      <th className="px-4 py-2.5 font-medium">Budget initial</th>
+                      <th className="px-4 py-2.5 font-medium">Budget réel</th>
+                      <th className="px-4 py-2.5 font-medium">Dépenses</th>
+                      <th className="px-4 py-2.5 font-medium">Solde restant</th>
+                      <th className="px-4 py-2.5 font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E7F2DE]">
+                    {commissions.length === 0 ? (
+                      <tr><td colSpan={8} className="px-4 py-5 text-center text-gray-400">Aucune commission enregistrée.</td></tr>
+                    ) : paginer(commissions, pageCommissions).map(c => (
+                      <tr key={c.id} className="text-[#1B3B1A]">
+                        <td className="px-4 py-2.5 font-medium">{c.nom}</td>
+                        <td className="px-4 py-2.5 text-gray-500">{c.nom_responsable ?? '—'}</td>
+                        <td className="px-4 py-2.5">
+                          {c.telephone_responsable ? <a href={`tel:+225${c.telephone_responsable}`} className="text-[#4F8A3D] hover:underline">{c.telephone_responsable}</a> : '—'}
+                        </td>
+                        <td className="px-4 py-2.5">{formatFCFA(c.budget_initial)}</td>
+                        <td className="px-4 py-2.5">{formatFCFA(c.budget_reel_decaissable)}</td>
+                        <td className="px-4 py-2.5">{formatFCFA(c.cumul_depenses)}</td>
+                        <td className={`px-4 py-2.5 font-semibold ${c.solde_restant < 0 ? 'text-[#B3492F]' : ''}`}>{formatFCFA(c.solde_restant)}</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <BoutonModifier onClick={() => setModaleCommission(c)} />
+                            <BoutonSupprimer id={c.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('commissions', c.id)} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination page={pageCommissions} totalPages={Math.max(1, Math.ceil(commissions.length / PAR_PAGE))} onChange={setPageCommissions} />
+            </section>
+
+            <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7F2DE]">
+                <p className="text-sm font-bold text-[#1B3B1A]">Dépenses par commission</p>
+                <button type="button" onClick={() => setModaleDepense('nouveau')} className="text-xs font-semibold text-white bg-[#B3492F] hover:bg-[#8a3722] px-3 py-1.5 rounded-lg">
+                  + Ajouter
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm whitespace-nowrap">
+                  <thead>
+                    <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
+                      <th className="px-4 py-2.5 font-medium">Commission</th>
+                      <th className="px-4 py-2.5 font-medium">Libellé</th>
+                      <th className="px-4 py-2.5 font-medium">Montant</th>
+                      <th className="px-4 py-2.5 font-medium">Justificatif</th>
+                      <th className="px-4 py-2.5 font-medium">Date</th>
+                      <th className="px-4 py-2.5 font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E7F2DE]">
+                    {depensesLignes.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-5 text-center text-gray-400">Aucune dépense enregistrée.</td></tr>
+                    ) : paginer(depensesLignes, pageDepenses).map(l => (
+                      <tr key={l.id} className="text-[#1B3B1A]">
+                        <td className="px-4 py-2.5 text-gray-500">{nomCommission(l.commission_id)}</td>
+                        <td className="px-4 py-2.5">{l.detail}</td>
+                        <td className="px-4 py-2.5 font-medium text-[#B3492F]">{formatFCFA(l.montant)}</td>
+                        <td className="px-4 py-2.5 text-gray-400 text-xs">{l.justificatif_numero ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(l.date_mouvement)}</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <BoutonModifier onClick={() => setModaleDepense(l)} />
+                            <BoutonSupprimer id={l.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('tresorerie', l.id)} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination page={pageDepenses} totalPages={Math.max(1, Math.ceil(depensesLignes.length / PAR_PAGE))} onChange={setPageDepenses} />
+            </section>
+          </>
+        )}
+
+        {/* ============================================================ */}
+        {/* Onglet 3 — Mobilisation des fonds (Donateurs, Boutique, Autres revenus) */}
+        {/* ============================================================ */}
+        {onglet === 'mobilisation' && (
+          <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-[#E7F2DE]">
+              <p className="text-sm font-bold text-[#1B3B1A]">Mobilisation des fonds</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setModaleDonateur('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
+                  + Donateur
+                </button>
+                <button type="button" onClick={() => setModaleBoutique('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
+                  + Boutique
+                </button>
+                <button type="button" onClick={() => setModaleAutreRevenu('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
+                  + Autre revenu
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead>
+                  <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
+                    <th className="px-4 py-2.5 font-medium">Type</th>
+                    <th className="px-4 py-2.5 font-medium">Nom</th>
+                    <th className="px-4 py-2.5 font-medium">Détail</th>
+                    <th className="px-4 py-2.5 font-medium">Montant</th>
+                    <th className="px-4 py-2.5 font-medium">Date</th>
+                    <th className="px-4 py-2.5 font-medium"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={pageCommissions} totalPages={Math.max(1, Math.ceil(commissions.length / PAR_PAGE))} onChange={setPageCommissions} />
-        </section>
+                </thead>
+                <tbody className="divide-y divide-[#E7F2DE]">
+                  {mobilisationLignes.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-5 text-center text-gray-400">Aucun mouvement enregistré.</td></tr>
+                  ) : paginer(mobilisationLignes, pageMobilisation).map(l => (
+                    <tr key={l.id} className="text-[#1B3B1A]">
+                      <td className="px-4 py-2.5 text-gray-500">{libelleCategorieMobilisation(l.categorie)}</td>
+                      <td className="px-4 py-2.5 font-medium">{l.nom_partie ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{l.detail || '—'}</td>
+                      <td className="px-4 py-2.5 font-medium text-[#4F8A3D]">{formatFCFA(l.montant)}</td>
+                      <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(l.date_mouvement)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <BoutonModifier onClick={() => {
+                            if (l.categorie === 'vente_gadgets') setModaleBoutique(l)
+                            else if (l.categorie === 'don_interne' || l.categorie === 'don_externe') setModaleDonateur(l)
+                            else setModaleAutreRevenu(l)
+                          }} />
+                          <BoutonSupprimer id={l.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('tresorerie', l.id)} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={pageMobilisation} totalPages={Math.max(1, Math.ceil(mobilisationLignes.length / PAR_PAGE))} onChange={setPageMobilisation} />
+          </section>
+        )}
 
-        {/* Section Mobilisation des fonds */}
-        <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-[#E7F2DE]">
-            <p className="text-sm font-bold text-[#1B3B1A]">Mobilisation des fonds</p>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setModaleDonNature('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
-                + Don en nature
-              </button>
-              <button type="button" onClick={() => setModaleDonateur('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
-                + Donateur
-              </button>
-              <button type="button" onClick={() => setModaleBoutique('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
-                + Boutique
-              </button>
-              <button type="button" onClick={() => setModaleAutreRevenu('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
-                + Autre revenu
+        {/* ============================================================ */}
+        {/* Onglet 4 — Registre des Dons en Nature */}
+        {/* ============================================================ */}
+        {onglet === 'dons' && (
+          <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7F2DE]">
+              <p className="text-sm font-bold text-[#1B3B1A]">Dons en nature</p>
+              <button type="button" onClick={() => setModaleDonNature('nouveau')} className="text-xs font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] px-3 py-1.5 rounded-lg">
+                + Ajouter
               </button>
             </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead>
-                <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
-                  <th className="px-4 py-2.5 font-medium">Type</th>
-                  <th className="px-4 py-2.5 font-medium">Détail</th>
-                  <th className="px-4 py-2.5 font-medium">Montant</th>
-                  <th className="px-4 py-2.5 font-medium">Date</th>
-                  <th className="px-4 py-2.5 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E7F2DE]">
-                {mobilisationLignes.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-5 text-center text-gray-400">Aucun mouvement enregistré.</td></tr>
-                ) : paginer(mobilisationLignes, pageMobilisation).map(l => (
-                  <tr key={l.id} className="text-[#1B3B1A]">
-                    <td className="px-4 py-2.5 text-gray-500">{libelleCategorieMobilisation(l.categorie)}</td>
-                    <td className="px-4 py-2.5">{l.detail}</td>
-                    <td className="px-4 py-2.5 font-medium text-[#4F8A3D]">{formatFCFA(l.montant)}</td>
-                    <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(l.date_mouvement)}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <BoutonModifier onClick={() => {
-                          if (l.categorie === 'vente_gadgets') setModaleBoutique(l)
-                          else if (l.categorie === 'don_interne' || l.categorie === 'don_externe') setModaleDonateur(l)
-                          else setModaleAutreRevenu(l)
-                        }} />
-                        <BoutonSupprimer id={l.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('tresorerie', l.id)} />
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead>
+                  <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
+                    <th className="px-4 py-2.5 font-medium">Désignation</th>
+                    <th className="px-4 py-2.5 font-medium">Qté / Unité</th>
+                    <th className="px-4 py-2.5 font-medium">Donateur</th>
+                    <th className="px-4 py-2.5 font-medium">Commission</th>
+                    <th className="px-4 py-2.5 font-medium">Valeur estimée</th>
+                    <th className="px-4 py-2.5 font-medium">Date</th>
+                    <th className="px-4 py-2.5 font-medium"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={pageMobilisation} totalPages={Math.max(1, Math.ceil(mobilisationLignes.length / PAR_PAGE))} onChange={setPageMobilisation} />
-        </section>
-
-        {/* Section Dons en nature */}
-        <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7F2DE]">
-            <p className="text-sm font-bold text-[#1B3B1A]">Dons en nature</p>
-            <button type="button" onClick={() => setModaleDonNature('nouveau')} className="text-xs font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] px-3 py-1.5 rounded-lg">
-              + Ajouter
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead>
-                <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
-                  <th className="px-4 py-2.5 font-medium">Désignation</th>
-                  <th className="px-4 py-2.5 font-medium">Qté / Unité</th>
-                  <th className="px-4 py-2.5 font-medium">Donateur</th>
-                  <th className="px-4 py-2.5 font-medium">Commission</th>
-                  <th className="px-4 py-2.5 font-medium">Valeur estimée</th>
-                  <th className="px-4 py-2.5 font-medium">Date</th>
-                  <th className="px-4 py-2.5 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E7F2DE]">
-                {donsNature.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-5 text-center text-gray-400">Aucun don en nature enregistré.</td></tr>
-                ) : paginer(donsNature, pageDons).map(d => (
-                  <tr key={d.id} className="text-[#1B3B1A]">
-                    <td className="px-4 py-2.5 font-medium">{d.designation ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{d.quantite ?? '—'} {d.unite ?? ''}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{d.nom_donateur ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{nomCommission(d.commission_id)}</td>
-                    <td className="px-4 py-2.5">{formatFCFA(d.valeur_estimee)}</td>
-                    <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(d.date_reception)}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <BoutonModifier onClick={() => setModaleDonNature(d)} />
-                        <BoutonSupprimer id={d.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('dons_nature', d.id)} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={pageDons} totalPages={Math.max(1, Math.ceil(donsNature.length / PAR_PAGE))} onChange={setPageDons} />
-        </section>
-
-        {/* Section Dépenses */}
-        <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7F2DE]">
-            <p className="text-sm font-bold text-[#1B3B1A]">Dépenses</p>
-            <button type="button" onClick={() => setModaleDepense('nouveau')} className="text-xs font-semibold text-white bg-[#B3492F] hover:bg-[#8a3722] px-3 py-1.5 rounded-lg">
-              + Ajouter
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead>
-                <tr className="bg-[#F4F9F0] text-left text-xs text-gray-500">
-                  <th className="px-4 py-2.5 font-medium">Commission</th>
-                  <th className="px-4 py-2.5 font-medium">Libellé</th>
-                  <th className="px-4 py-2.5 font-medium">Montant</th>
-                  <th className="px-4 py-2.5 font-medium">Justificatif</th>
-                  <th className="px-4 py-2.5 font-medium">Date</th>
-                  <th className="px-4 py-2.5 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E7F2DE]">
-                {depensesLignes.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-5 text-center text-gray-400">Aucune dépense enregistrée.</td></tr>
-                ) : paginer(depensesLignes, pageDepenses).map(l => (
-                  <tr key={l.id} className="text-[#1B3B1A]">
-                    <td className="px-4 py-2.5 text-gray-500">{nomCommission(l.commission_id)}</td>
-                    <td className="px-4 py-2.5">{l.detail}</td>
-                    <td className="px-4 py-2.5 font-medium text-[#B3492F]">{formatFCFA(l.montant)}</td>
-                    <td className="px-4 py-2.5 text-gray-400 text-xs">{l.justificatif_numero ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(l.date_mouvement)}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <BoutonModifier onClick={() => setModaleDepense(l)} />
-                        <BoutonSupprimer id={l.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('tresorerie', l.id)} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={pageDepenses} totalPages={Math.max(1, Math.ceil(depensesLignes.length / PAR_PAGE))} onChange={setPageDepenses} />
-        </section>
+                </thead>
+                <tbody className="divide-y divide-[#E7F2DE]">
+                  {donsNature.length === 0 ? (
+                    <tr><td colSpan={7} className="px-4 py-5 text-center text-gray-400">Aucun don en nature enregistré.</td></tr>
+                  ) : paginer(donsNature, pageDons).map(d => (
+                    <tr key={d.id} className="text-[#1B3B1A]">
+                      <td className="px-4 py-2.5 font-medium">{d.designation ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{d.quantite ?? '—'} {d.unite ?? ''}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{d.nom_donateur ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{nomCommission(d.commission_id)}</td>
+                      <td className="px-4 py-2.5">{formatFCFA(d.valeur_estimee)}</td>
+                      <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(d.date_reception)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <BoutonModifier onClick={() => setModaleDonNature(d)} />
+                          <BoutonSupprimer id={d.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('dons_nature', d.id)} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={pageDons} totalPages={Math.max(1, Math.ceil(donsNature.length / PAR_PAGE))} onChange={setPageDons} />
+          </section>
+        )}
       </div>
 
       {/* Modales */}
