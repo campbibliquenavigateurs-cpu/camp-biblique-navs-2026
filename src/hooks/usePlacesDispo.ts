@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Hook places disponibles (Phase 5)
-// Appelable par Home.tsx et InscriptionForm.tsx sans dupliquer
-// la logique de chargement.
+// Étendu en Phase 13 avec l'état ouvert/fermé des inscriptions,
+// pour n'avoir qu'un seul appel réseau côté formulaire.
 // ============================================================
 
 export interface PlacesDispo {
@@ -14,6 +14,7 @@ export interface PlacesDispo {
   restantEnfants: number
   complet: { adultes: boolean; enfants: boolean }
   tauxRemplissage: { adultes: number; enfants: number }
+  inscriptionsOuvertes: boolean
 }
 
 export function usePlacesDispo(): PlacesDispo | null {
@@ -29,6 +30,7 @@ export function usePlacesDispo(): PlacesDispo | null {
         quota_enfants: number
         inscrits_adultes: number
         inscrits_enfants: number
+        inscriptions_ouvertes: boolean
       }
 
       const restantAdultes = Math.max(0, d.quota_adultes - d.inscrits_adultes)
@@ -47,6 +49,7 @@ export function usePlacesDispo(): PlacesDispo | null {
           adultes: d.quota_adultes > 0 ? (d.inscrits_adultes / d.quota_adultes) * 100 : 0,
           enfants: d.quota_enfants > 0 ? (d.inscrits_enfants / d.quota_enfants) * 100 : 0,
         },
+        inscriptionsOuvertes: d.inscriptions_ouvertes,
       })
     }
     charger()
@@ -54,4 +57,3 @@ export function usePlacesDispo(): PlacesDispo | null {
 
   return places
 }
- 

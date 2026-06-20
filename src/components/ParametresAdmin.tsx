@@ -28,6 +28,7 @@ export default function ParametresAdmin() {
   const [parametres, setParametres] = useState<Parametre[]>([])
   const [valeurs, setValeurs] = useState<Record<string, string>>({})
   const [messageParCle, setMessageParCle] = useState<Record<string, string>>({})
+  const [envoiCommutateur, setEnvoiCommutateur] = useState(false)
 
   async function charger() {
     const { data, error } = await supabase.from('parametres_camp').select('*').order('cle')
@@ -53,6 +54,24 @@ export default function ParametresAdmin() {
     setTimeout(() => setMessageParCle(prev => ({ ...prev, [cle]: '' })), 2500)
   }
 
+  // L'inscription ouverte/fermée se pilote comme un commutateur (1/0),
+  // pas un champ numérique classique — verrouille/déverrouille
+  // instantanément l'accès public au formulaire d'inscription.
+  const inscriptionsOuvertes = (valeurs['inscriptions_ouvertes'] ?? '1') !== '0'
+
+  async function basculerInscriptions() {
+    const nouvelleValeur = inscriptionsOuvertes ? 0 : 1
+    setEnvoiCommutateur(true)
+    const { error } = await supabase.from('parametres_camp').update({ valeur: nouvelleValeur }).eq('cle', 'inscriptions_ouvertes')
+    setEnvoiCommutateur(false)
+    if (error) {
+      setMessageParCle(prev => ({ ...prev, inscriptions_ouvertes: 'Erreur lors de la mise à jour' }))
+      return
+    }
+    setValeurs(prev => ({ ...prev, inscriptions_ouvertes: String(nouvelleValeur) }))
+    charger()
+  }
+
   if (statutAcces === 'verification') {
     return (
       <div className="min-h-screen bg-[#F4F9F0] flex items-center justify-center">
@@ -73,31 +92,57 @@ export default function ParametresAdmin() {
         {parametres.length === 0 ? (
           <p className="text-sm text-gray-400">Chargement...</p>
         ) : (
-          parametres.map(p => (
-            <div key={p.cle} className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
-              <label className="block text-sm font-medium text-[#1B3B1A] mb-2">
-                {LIBELLES[p.cle] ?? p.cle}
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  value={valeurs[p.cle] ?? ''}
-                  onChange={e => setValeurs(prev => ({ ...prev, [p.cle]: e.target.value }))}
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4F8A3D] focus:border-transparent"
-                />
-                <button
-                  type="button"
-                  onClick={() => enregistrer(p.cle)}
-                  className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530]"
-                >
-                  Enregistrer
-                </button>
+          <>
+            <div className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#1B3B1A]">Inscriptions publiques</p>
+                <p className={`text-xs mt-0.5 ${inscriptionsOuvertes ? 'text-[#4F8A3D]' : 'text-[#B3492F]'}`}>
+                  {inscriptionsOuvertes ? 'Ouvertes — le formulaire est accessible' : 'Fermées — le formulaire est verrouillé'}
+                </p>
               </div>
-              {messageParCle[p.cle] && (
-                <p className="text-xs text-[#4F8A3D] mt-2">{messageParCle[p.cle]}</p>
-              )}
+              <button
+                type="button"
+                onClick={basculerInscriptions}
+                disabled={envoiCommutateur}
+                aria-label="Basculer l'état des inscriptions"
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-300 shrink-0 ${
+                  inscriptionsOuvertes ? 'bg-[#4F8A3D]' : 'bg-gray-300'
+                } ${envoiCommutateur ? 'opacity-60' : ''}`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-300 ${
+                    inscriptionsOuvertes ? 'translate-x-8' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </div>
-          ))
+
+            {parametres.filter(p => p.cle !== 'inscriptions_ouvertes').map(p => (
+              <div key={p.cle} className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
+                <label className="block text-sm font-medium text-[#1B3B1A] mb-2">
+                  {LIBELLES[p.cle] ?? p.cle}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={valeurs[p.cle] ?? ''}
+                    onChange={e => setValeurs(prev => ({ ...prev, [p.cle]: e.target.value }))}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4F8A3D] focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => enregistrer(p.cle)}
+                    className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530]"
+                  >
+                    Enregistrer
+                  </button>
+                </div>
+                {messageParCle[p.cle] && (
+                  <p className="text-xs text-[#4F8A3D] mt-2">{messageParCle[p.cle]}</p>
+                )}
+              </div>
+            ))}
+          </>
         )}
       </div>
     </div>

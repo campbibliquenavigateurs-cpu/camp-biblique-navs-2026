@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
-import { usePlacesDispo } from '../hooks/usePlacesDispo'
+import { usePlacesDispo, type PlacesDispo } from '../hooks/usePlacesDispo'
 import GuideTailles from './GuideTailles'
+import InscriptionsFermees from './InscriptionsFermees'
 import { formatFCFA } from '../utils/format'
 
 // ============================================================
@@ -164,6 +165,25 @@ const carteChoix = (actif:boolean) =>
 export default function InscriptionForm() {
   const toast = useToast()
   const places = usePlacesDispo()
+
+  // On attend de connaître l'état réel (ouvert/fermé) avant d'afficher
+  // quoi que ce soit, pour éviter un effet de clignotement (formulaire
+  // qui apparaît puis se referme aussitôt).
+  if (places === null) {
+    return (
+      <div className="min-h-screen bg-[#F4F9F0] flex items-center justify-center">
+        <p className="text-[#5B7A56] text-sm font-medium animate-pulse">Chargement...</p>
+      </div>
+    )
+  }
+  if (!places.inscriptionsOuvertes) {
+    return <InscriptionsFermees />
+  }
+
+  return <InscriptionFormOuvert places={places} toast={toast} />
+}
+
+function InscriptionFormOuvert({ places, toast }: { places: PlacesDispo; toast: ReturnType<typeof useToast> }) {
   const [etape, setEtape] = useState(1)
   const [direction, setDirection] = useState<'avancer'|'reculer'>('avancer')
   const [form, setForm] = useState<InscriptionFormData>(FORM_INITIAL)
