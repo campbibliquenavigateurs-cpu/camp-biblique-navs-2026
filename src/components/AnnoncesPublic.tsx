@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
+import { AlertTriangle, Bell, Info, type LucideIcon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 // ============================================================
-// Camp Biblique-Navs 2026 — Annonces & Flash Infos (édition Premium)
-// Cartes entièrement cliquables, dépliage animé en CSS pur (technique
-// grid-template-rows, sans JS de mesure de hauteur), entrée en
-// cascade, micro-interaction au survol/toucher.
+// Camp Biblique-Navs 2026 — Annonces & Flash Infos (édition Premium v2)
+// Plus de bordure colorée : teinte de fond dégradée à la place.
+// Regroupement par période, mise en avant de l'annonce urgente la
+// plus récente, icônes de priorité, hiérarchie typographique renforcée.
 // ============================================================
 
 const STYLES = `
@@ -43,20 +44,22 @@ interface Annonce {
 
 const POIDS_PRIORITE: Record<Priorite, number> = { high: 0, medium: 1, low: 2 }
 
-function styleBordure(priorite: Priorite) {
-  if (priorite === 'high') return 'border-l-4 border-[#B3492F]'
-  if (priorite === 'medium') return 'border-l-4 border-[#D9A441]'
-  return 'border-l-4 border-[#9CC18F]'
+interface StylePriorite {
+  label: string
+  Icon: LucideIcon
+  texte: string
+  fondBadge: string
+  degrade: string
 }
 
-// La base ne distingue que 3 niveaux de priorité (high/medium/low) — pas
-// de catégories thématiques séparées (Logistique, etc.). On mappe donc
-// ces 3 niveaux à des badges clairs plutôt que d'inventer une donnée
-// qui n'existe pas dans le schéma.
-function badgePriorite(priorite: Priorite) {
-  if (priorite === 'high') return { label: 'Urgent', bg: 'bg-[#B3492F]/10', text: 'text-[#B3492F]' }
-  if (priorite === 'medium') return { label: 'Rappel', bg: 'bg-[#D9A441]/15', text: 'text-[#8A6A23]' }
-  return { label: 'Info', bg: 'bg-[#E7F2DE]', text: 'text-[#4F8A3D]' }
+function stylePriorite(priorite: Priorite): StylePriorite {
+  if (priorite === 'high') {
+    return { label: 'Urgent', Icon: AlertTriangle, texte: 'text-[#B3492F]', fondBadge: 'bg-[#B3492F]/10', degrade: 'bg-gradient-to-r from-[#B3492F]/[0.07] via-white to-white' }
+  }
+  if (priorite === 'medium') {
+    return { label: 'Rappel', Icon: Bell, texte: 'text-[#8A6A23]', fondBadge: 'bg-[#D9A441]/15', degrade: 'bg-gradient-to-r from-[#D9A441]/[0.09] via-white to-white' }
+  }
+  return { label: 'Info', Icon: Info, texte: 'text-[#4F8A3D]', fondBadge: 'bg-[#E7F2DE]', degrade: 'bg-gradient-to-r from-[#9CC18F]/[0.10] via-white to-white' }
 }
 
 function tempsRelatif(dateStr: string): string {
@@ -71,6 +74,23 @@ function tempsRelatif(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('fr-FR')
 }
 
+// Regroupe les annonces (déjà triées) en 3 paniers temporels, pour une
+// lecture façon fil d'actualité plutôt qu'une liste plate uniforme.
+function regrouperParPeriode(annonces: Annonce[]) {
+  const maintenant = new Date()
+  const aujourdHui: Annonce[] = []
+  const cetteSemaine: Annonce[] = []
+  const plusAncien: Annonce[] = []
+  annonces.forEach(a => {
+    const date = new Date(a.date_publication)
+    const diffJours = (maintenant.getTime() - date.getTime()) / 86400000
+    if (date.toDateString() === maintenant.toDateString()) aujourdHui.push(a)
+    else if (diffJours < 7) cetteSemaine.push(a)
+    else plusAncien.push(a)
+  })
+  return { aujourdHui, cetteSemaine, plusAncien }
+}
+
 function ChevronBas({ ouverte }: { ouverte: boolean }) {
   return (
     <svg
@@ -82,9 +102,9 @@ function ChevronBas({ ouverte }: { ouverte: boolean }) {
   )
 }
 
-function CarteAnnonce({ annonce, index }: { annonce: Annonce; index: number }) {
+function CarteAnnonce({ annonce, index, vedette = false }: { annonce: Annonce; index: number; vedette?: boolean }) {
   const [ouverte, setOuverte] = useState(false)
-  const badge = badgePriorite(annonce.priorite)
+  const style = stylePriorite(annonce.priorite)
 
   return (
     <div
@@ -92,31 +112,34 @@ function CarteAnnonce({ annonce, index }: { annonce: Annonce; index: number }) {
       tabIndex={0}
       onClick={() => setOuverte(v => !v)}
       onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setOuverte(v => !v)}
-      className={`annonce-carte bg-white rounded-xl shadow-sm p-4 cursor-pointer select-none
+      className={`annonce-carte relative rounded-xl shadow-sm cursor-pointer select-none overflow-hidden
         transition-all duration-200 hover:scale-[1.015] hover:shadow-md active:scale-[1.015]
-        ${styleBordure(annonce.priorite)}`}
+        ${style.degrade} ${vedette ? 'p-6 ring-1 ring-[#B3492F]/20' : 'p-5'}`}
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
-          {badge.label}
+      {vedette && <div className="absolute top-0 inset-x-0 h-1 bg-[#B3492F]" />}
+
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${style.fondBadge} ${style.texte}`}>
+          <style.Icon className="w-3 h-3" strokeWidth={2} />
+          {style.label}
         </span>
-        <span className="text-[11px] text-gray-400 shrink-0">{tempsRelatif(annonce.date_publication)}</span>
+        <span className="text-[11px] text-gray-400 tracking-wide shrink-0">{tempsRelatif(annonce.date_publication)}</span>
       </div>
 
-      <p className="font-semibold text-[#1B3B1A] text-sm">{annonce.titre}</p>
+      <p className={`font-bold text-[#1B3B1A] ${vedette ? 'text-lg' : 'text-base'}`}>{annonce.titre}</p>
 
       {!ouverte && (
-        <p className="text-sm text-gray-600 mt-0.5 line-clamp-2">{annonce.contenu}</p>
+        <p className={`text-gray-600 mt-1 leading-relaxed line-clamp-2 ${vedette ? 'text-sm' : 'text-sm'}`}>{annonce.contenu}</p>
       )}
 
       <div className={`annonce-pliable ${ouverte ? 'ouverte' : ''}`}>
         <div>
-          <p className="text-sm text-gray-600 mt-0.5 pt-0.5">{annonce.contenu}</p>
+          <p className="text-sm text-gray-600 mt-1 pt-0.5 leading-relaxed">{annonce.contenu}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 mt-2 text-xs font-medium text-[#4F8A3D]">
+      <div className="flex items-center gap-1 mt-3 text-xs font-semibold text-[#4F8A3D]">
         {ouverte ? 'Réduire' : 'Lire la suite'}
         <ChevronBas ouverte={ouverte} />
       </div>
@@ -124,12 +147,18 @@ function CarteAnnonce({ annonce, index }: { annonce: Annonce; index: number }) {
   )
 }
 
+function EnteteGroupe({ titre }: { titre: string }) {
+  return (
+    <p className="text-xs font-bold uppercase tracking-widest text-[#5B7A56] mt-6 mb-2.5 first:mt-0">
+      {titre}
+    </p>
+  )
+}
+
 function EtatVide() {
   return (
-    <div className="annonce-carte text-center py-12" style={{ animationDelay: '0ms' }}>
-      <svg className="w-10 h-10 text-[#9CC18F] mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
-      </svg>
+    <div className="annonce-carte text-center py-12">
+      <Info className="w-10 h-10 text-[#9CC18F] mx-auto mb-3" strokeWidth={1.5} />
       <p className="text-sm text-gray-400">Aucune annonce pour le moment.</p>
     </div>
   )
@@ -157,6 +186,18 @@ export default function AnnoncesPublic() {
     charger()
   }, [])
 
+  // La toute première annonce, si elle est "Urgent", est mise en avant
+  // au-dessus du fil, plutôt que noyée dans la liste comme les autres.
+  const vedette = annonces[0]?.priorite === 'high' ? annonces[0] : null
+  const reste = vedette ? annonces.filter(a => a.id !== vedette.id) : annonces
+  const { aujourdHui, cetteSemaine, plusAncien } = regrouperParPeriode(reste)
+
+  let compteur = 0
+  function prochainIndex() {
+    compteur += 1
+    return compteur
+  }
+
   return (
     <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
       <style>{STYLES}</style>
@@ -168,10 +209,39 @@ export default function AnnoncesPublic() {
         ) : annonces.length === 0 ? (
           <EtatVide />
         ) : (
-          <div className="space-y-2.5">
-            {annonces.map((a, index) => (
-              <CarteAnnonce key={a.id} annonce={a} index={index} />
-            ))}
+          <div>
+            {vedette && (
+              <div className="mb-5">
+                <CarteAnnonce annonce={vedette} index={prochainIndex()} vedette />
+              </div>
+            )}
+
+            {aujourdHui.length > 0 && (
+              <>
+                <EnteteGroupe titre="Aujourd'hui" />
+                <div className="space-y-3">
+                  {aujourdHui.map(a => <CarteAnnonce key={a.id} annonce={a} index={prochainIndex()} />)}
+                </div>
+              </>
+            )}
+
+            {cetteSemaine.length > 0 && (
+              <>
+                <EnteteGroupe titre="Cette semaine" />
+                <div className="space-y-3">
+                  {cetteSemaine.map(a => <CarteAnnonce key={a.id} annonce={a} index={prochainIndex()} />)}
+                </div>
+              </>
+            )}
+
+            {plusAncien.length > 0 && (
+              <>
+                <EnteteGroupe titre="Plus ancien" />
+                <div className="space-y-3">
+                  {plusAncien.map(a => <CarteAnnonce key={a.id} annonce={a} index={prochainIndex()} />)}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
