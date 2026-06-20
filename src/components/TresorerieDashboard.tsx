@@ -61,7 +61,7 @@ interface DonNature {
 }
 
 interface Resume {
-  total_entrees_hors_subvention: number
+  total_ressources_reelles: number
   total_sorties: number
   objectif_budget: number
   total_frais_participation: number
@@ -546,6 +546,71 @@ function ModaleAutreRevenu({ donnee, onFermer, onSauvegarde }: {
 // ============================================================
 // Modale : Dépense (toujours liée à une commission) — ajout / édition
 // ============================================================
+// ============================================================
+// Modale : Subvention du Ministère REÇUE — uniquement quand l'argent
+// est effectivement décaissé (jamais l'estimation automatique).
+// ============================================================
+function ModaleSubvention({ donnee, onFermer, onSauvegarde }: {
+  donnee: LigneTresorerie | null
+  onFermer: () => void
+  onSauvegarde: () => void
+}) {
+  const toast = useToast()
+  const [montant, setMontant] = useState(donnee ? String(donnee.montant) : '')
+  const [reference, setReference] = useState(donnee?.detail ?? '')
+  const [date, setDate] = useState(donnee ? donnee.date_mouvement.slice(0, 10) : new Date().toISOString().slice(0, 10))
+  const [envoi, setEnvoi] = useState(false)
+
+  const valide = montant !== '' && Number(montant) > 0
+
+  async function soumettre() {
+    if (!valide) return
+    setEnvoi(true)
+    const payload = {
+      type: 'entree' as const,
+      categorie: 'subvention',
+      nom_partie: 'Ministère',
+      detail: reference.trim(),
+      montant: Number(montant),
+      date_mouvement: date,
+    }
+    const { error } = donnee
+      ? await supabase.from('tresorerie').update(payload).eq('id', donnee.id)
+      : await supabase.from('tresorerie').insert(payload)
+    setEnvoi(false)
+    if (error) { toast.erreur("Erreur lors de l'enregistrement."); console.error(error); return }
+    toast.succes(donnee ? 'Subvention mise à jour !' : 'Subvention enregistrée !')
+    onSauvegarde()
+    onFermer()
+  }
+
+  return (
+    <Modale titre={donnee ? 'Modifier la subvention reçue' : 'Enregistrer une subvention reçue'} onFermer={onFermer}>
+      <div className="space-y-3">
+        <p className="text-xs text-[#8A6A23] bg-[#D9A441]/10 rounded-lg px-3 py-2">
+          À utiliser uniquement lorsque le ministère a effectivement versé les fonds — pas pour l'estimation automatique.
+        </p>
+        <div>
+          <label className={labelBase}>Montant reçu (F CFA)</label>
+          <input type="number" min={1} value={montant} onChange={e => setMontant(e.target.value)} className={champBase} placeholder="Ex : 500000" />
+        </div>
+        <div>
+          <label className={labelBase}>Référence / Note (optionnel)</label>
+          <input type="text" value={reference} onChange={e => setReference(e.target.value)} className={champBase} placeholder="Ex : Virement du 20 août" />
+        </div>
+        <div>
+          <label className={labelBase}>Date de réception</label>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className={champBase} />
+        </div>
+        <button type="button" onClick={soumettre} disabled={!valide || envoi}
+          className={`w-full py-2.5 rounded-lg text-sm font-semibold text-white mt-2 ${valide && !envoi ? 'bg-[#4F8A3D] hover:bg-[#3F7530]' : 'bg-gray-300 cursor-not-allowed'}`}>
+          {envoi ? 'Enregistrement...' : 'Enregistrer'}
+        </button>
+      </div>
+    </Modale>
+  )
+}
+
 function ModaleDepense({ donnee, commissions, onFermer, onSauvegarde }: {
   donnee: LigneTresorerie | null
   commissions: Commission[]
@@ -651,6 +716,7 @@ export default function TresorerieDashboard() {
   const [modaleDonateur, setModaleDonateur] = useState<LigneTresorerie | 'nouveau' | null>(null)
   const [modaleBoutique, setModaleBoutique] = useState<LigneTresorerie | 'nouveau' | null>(null)
   const [modaleAutreRevenu, setModaleAutreRevenu] = useState<LigneTresorerie | 'nouveau' | null>(null)
+  const [modaleSubvention, setModaleSubvention] = useState<LigneTresorerie | 'nouveau' | null>(null)
   const [modaleDepense, setModaleDepense] = useState<LigneTresorerie | 'nouveau' | null>(null)
 
   const charger = useCallback(async () => {
@@ -677,18 +743,18 @@ export default function TresorerieDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statutAcces])
 
-  // ---- Logique Budget Global & Subvention automatique ----
-  // Ressources hors subvention = Frais de participation + Dons Navs/Non-Navs
-  // + Boutique + Solde antérieur/Autres revenus (déjà sommés côté SQL).
-  // Si ce total est inférieur au budget prévu, la subvention comble l'écart ;
-  // sinon elle retombe automatiquement à 0.
-  const ressourcesHorsSubvention = resume?.total_entrees_hors_subvention ?? 0
+  // ---- Logique Budget Global & Subvention ----
+  // "total_ressources_reelles" inclut TOUTE entrée réellement saisie,
+  // y compris une éventuelle subvention déjà reçue (catégorie "subvention").
+  // L'estimation ci-dessous (subventionEstimee) est purement informative :
+  // elle n'est JAMAIS ajoutée au solde réel, qui ne reflète que de
+  // l'argent effectivement encaissé.
+  const totalRessourcesReelles = resume?.total_ressources_reelles ?? 0
   const objectifBudget = resume?.objectif_budget ?? 0
-  const subventionAuto = Math.max(0, objectifBudget - ressourcesHorsSubvention)
-  const totalEntreesFinal = ressourcesHorsSubvention + subventionAuto
+  const subventionEstimee = Math.max(0, objectifBudget - totalRessourcesReelles)
   const totalSorties = resume?.total_sorties ?? 0
-  const soldeGlobal = totalEntreesFinal - totalSorties
-  const tauxAtteinte = objectifBudget > 0 ? (totalEntreesFinal / objectifBudget) * 100 : 0
+  const soldeReel = totalRessourcesReelles - totalSorties
+  const tauxAtteinteReel = objectifBudget > 0 ? (totalRessourcesReelles / objectifBudget) * 100 : 0
 
   async function enregistrerBudgetGlobal() {
     const valeur = Number(budgetGlobalSaisie)
@@ -702,10 +768,10 @@ export default function TresorerieDashboard() {
     charger()
   }
 
-  // "Mobilisation des fonds" ne couvre plus que Donateurs/Boutique/Autres
-  // revenus — les Dons en nature ont désormais leur propre onglet.
+  // "Mobilisation des fonds" couvre Donateurs/Boutique/Autres revenus/
+  // Subvention reçue — les Dons en nature ont leur propre onglet.
   const mobilisationLignes = useMemo(
-    () => lignesTresorerie.filter(l => l.type === 'entree' && l.categorie !== 'participation' && l.categorie !== 'subvention'),
+    () => lignesTresorerie.filter(l => l.type === 'entree' && l.categorie !== 'participation'),
     [lignesTresorerie]
   )
   const depensesLignes = useMemo(() => lignesTresorerie.filter(l => l.type === 'sortie'), [lignesTresorerie])
@@ -731,6 +797,7 @@ export default function TresorerieDashboard() {
     if (cat === 'don_interne') return 'Don (Membre Navs)'
     if (cat === 'don_externe') return 'Don (Non-Navs)'
     if (cat === 'vente_gadgets') return 'Boutique'
+    if (cat === 'subvention') return 'Subvention reçue'
     return 'Autre revenu'
   }
 
@@ -740,13 +807,12 @@ export default function TresorerieDashboard() {
 
     const feuilleSynthese = utils.json_to_sheet([{
       'Budget Global Prévu (F CFA)': objectifBudget,
-      'Total ressources hors subvention (F CFA)': ressourcesHorsSubvention,
+      'Total entrées réelles (F CFA)': totalRessourcesReelles,
       'dont Frais de participation (F CFA)': resume?.total_frais_participation ?? 0,
-      'Subvention du Ministère (F CFA)': subventionAuto,
-      'Total entrées (F CFA)': totalEntreesFinal,
       'Total sorties (F CFA)': totalSorties,
-      'Solde (F CFA)': soldeGlobal,
-      "Taux d'atteinte (%)": Math.round(tauxAtteinte * 10) / 10,
+      'Solde réel (F CFA)': soldeReel,
+      "Taux d'atteinte réel (%)": Math.round(tauxAtteinteReel * 10) / 10,
+      'Subvention estimée non reçue (F CFA)': subventionEstimee,
     }])
 
     const { data: inscriptions } = await supabase
@@ -809,11 +875,11 @@ export default function TresorerieDashboard() {
       head: [['Indicateur', 'Montant']],
       body: [
         ['Budget Global Prévu', formatFCFA(objectifBudget)],
+        ['Total entrées réelles', formatFCFA(totalRessourcesReelles)],
         ['dont Frais de participation', formatFCFA(resume?.total_frais_participation ?? 0)],
-        ['Subvention du Ministère (automatique)', formatFCFA(subventionAuto)],
-        ['Total entrées', formatFCFA(totalEntreesFinal)],
         ['Total sorties', formatFCFA(totalSorties)],
-        ['Solde', formatFCFA(soldeGlobal)],
+        ['Solde réel', formatFCFA(soldeReel)],
+        ['Subvention estimée non reçue', formatFCFA(subventionEstimee)],
       ],
       styles: { fontSize: 9 },
       headStyles: { fillColor: [27, 59, 26] },
@@ -841,7 +907,7 @@ export default function TresorerieDashboard() {
 
   const ONGLETS: { cle: typeof onglet; label: string }[] = [
     { cle: 'synthese', label: 'Synthèse Globale & Budget' },
-    { cle: 'commissions', label: '17 Commissions' },
+    { cle: 'commissions', label: `Commissions (${commissions.length})` },
     { cle: 'mobilisation', label: 'Mobilisation des Fonds' },
     { cle: 'dons', label: 'Dons en Nature' },
   ]
@@ -909,40 +975,40 @@ export default function TresorerieDashboard() {
             </section>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <CarteKPI label="Solde global" valeur={chargement ? '—' : formatFCFA(soldeGlobal)} accent="text-[#4F8A3D]" />
-              <CarteKPI label="Total entrées" valeur={chargement ? '—' : formatFCFA(totalEntreesFinal)} />
+              <CarteKPI label="Solde réel de trésorerie" valeur={chargement ? '—' : formatFCFA(soldeReel)} accent="text-[#4F8A3D]" />
+              <CarteKPI label="Total entrées réelles" valeur={chargement ? '—' : formatFCFA(totalRessourcesReelles)} />
               <CarteKPI label="Total sorties" valeur={chargement ? '—' : formatFCFA(totalSorties)} accent="text-[#B3492F]" />
-              <CarteKPI label="Taux d'atteinte budget" valeur={chargement ? '—' : `${Math.round(tauxAtteinte * 10) / 10}%`} accent="text-[#D9A441]" />
+              <CarteKPI label="Taux d'atteinte réel" valeur={chargement ? '—' : `${Math.round(tauxAtteinteReel * 10) / 10}%`} accent="text-[#D9A441]" />
             </div>
 
             <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
-              <p className="text-sm font-bold text-[#1B3B1A] mb-3">Détail des recettes</p>
+              <p className="text-sm font-bold text-[#1B3B1A] mb-3">Détail des recettes réelles</p>
               <div className="divide-y divide-[#E7F2DE] text-sm">
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-gray-500">Frais de participation (versements campeurs)</span>
                   <span className="font-medium text-[#1B3B1A]">{formatFCFA(resume?.total_frais_participation ?? 0)}</span>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
-                  <span className="text-gray-500">Dons, boutique, autres revenus (hors dons en nature)</span>
-                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(ressourcesHorsSubvention - (resume?.total_frais_participation ?? 0))}</span>
+                  <span className="text-gray-500">Dons, boutique, subvention reçue, autres revenus</span>
+                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(totalRessourcesReelles - (resume?.total_frais_participation ?? 0))}</span>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
-                  <span className="text-gray-500">Total ressources hors subvention</span>
-                  <span className="font-semibold text-[#1B3B1A]">{formatFCFA(ressourcesHorsSubvention)}</span>
-                </div>
-                <div className={`flex items-center justify-between py-2.5 ${subventionAuto > 0 ? 'bg-[#D9A441]/10 -mx-5 px-5' : ''}`}>
-                  <span className="text-gray-500">Subvention du Ministère (calculée automatiquement)</span>
-                  <span className={`font-bold ${subventionAuto > 0 ? 'text-[#8A6A23]' : 'text-gray-400'}`}>{formatFCFA(subventionAuto)}</span>
-                </div>
-                <div className="flex items-center justify-between py-2.5">
-                  <span className="font-bold text-[#1B3B1A]">Total entrées</span>
-                  <span className="font-bold text-[#1B3B1A]">{formatFCFA(totalEntreesFinal)}</span>
+                  <span className="font-bold text-[#1B3B1A]">Total entrées réelles</span>
+                  <span className="font-bold text-[#1B3B1A]">{formatFCFA(totalRessourcesReelles)}</span>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-3">
-                {subventionAuto > 0
-                  ? `Le total des ressources mobilisées n'atteint pas le budget prévu : la subvention comble automatiquement l'écart de ${formatFCFA(subventionAuto)}.`
-                  : 'Le budget prévu est déjà couvert par les ressources mobilisées : aucune subvention nécessaire.'}
+            </section>
+
+            <section className={`rounded-2xl border shadow-sm p-5 ${subventionEstimee > 0 ? 'bg-[#D9A441]/10 border-[#D9A441]/40' : 'bg-white border-[#E7F2DE]'}`}>
+              <p className="text-sm font-bold text-[#1B3B1A] mb-2">Estimation — Subvention du Ministère</p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Écart entre le budget prévu et les recettes réelles</span>
+                <span className={`text-lg font-bold ${subventionEstimee > 0 ? 'text-[#8A6A23]' : 'text-gray-400'}`}>{formatFCFA(subventionEstimee)}</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {subventionEstimee > 0
+                  ? "Ceci est une simple estimation du besoin, pas de l'argent en caisse. Le solde réel ci-dessus n'en tient pas compte. Une fois la subvention effectivement reçue, enregistre-la via le bouton « + Subvention reçue » de l'onglet Mobilisation des fonds."
+                  : 'Le budget prévu est déjà couvert par les recettes réelles : aucune subvention nécessaire pour le moment.'}
               </p>
             </section>
           </>
@@ -1064,6 +1130,9 @@ export default function TresorerieDashboard() {
                 <button type="button" onClick={() => setModaleAutreRevenu('nouveau')} className="text-xs font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-[#E7F2DE] px-3 py-1.5 rounded-lg">
                   + Autre revenu
                 </button>
+                <button type="button" onClick={() => setModaleSubvention('nouveau')} className="text-xs font-semibold text-white bg-[#D9A441] hover:bg-[#C4933A] px-3 py-1.5 rounded-lg">
+                  + Subvention reçue
+                </button>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -1093,6 +1162,7 @@ export default function TresorerieDashboard() {
                           <BoutonModifier onClick={() => {
                             if (l.categorie === 'vente_gadgets') setModaleBoutique(l)
                             else if (l.categorie === 'don_interne' || l.categorie === 'don_externe') setModaleDonateur(l)
+                            else if (l.categorie === 'subvention') setModaleSubvention(l)
                             else setModaleAutreRevenu(l)
                           }} />
                           <BoutonSupprimer id={l.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer('tresorerie', l.id)} />
@@ -1192,6 +1262,13 @@ export default function TresorerieDashboard() {
         <ModaleAutreRevenu
           donnee={modaleAutreRevenu === 'nouveau' ? null : modaleAutreRevenu}
           onFermer={() => setModaleAutreRevenu(null)}
+          onSauvegarde={charger}
+        />
+      )}
+      {modaleSubvention && (
+        <ModaleSubvention
+          donnee={modaleSubvention === 'nouveau' ? null : modaleSubvention}
+          onFermer={() => setModaleSubvention(null)}
           onSauvegarde={charger}
         />
       )}
