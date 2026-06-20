@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import { usePlacesDispo } from '../hooks/usePlacesDispo'
 import GuideTailles from './GuideTailles'
+import { formatFCFA } from '../utils/format'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Formulaire d'inscription (Phase 5)
@@ -56,7 +57,6 @@ const TRANCHES_AGE_MIN: Record<Exclude<TrancheAge,''>,number> = {
 const TAILLES_POLO: TaillePolo[] = ['XS','S','M','L','XL','XXL']
 const PRIX = { enfant:25000, adulte:30000 } as const
 
-function formatFCFA(n:number){ return n.toLocaleString('fr-FR')+' F CFA' }
 
 function normaliserTelephone(val:string): string {
   let c = val.replace(/\D/g,'')

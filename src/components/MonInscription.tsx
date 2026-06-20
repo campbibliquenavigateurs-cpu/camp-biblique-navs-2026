@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import ContactsOfficiels from './ContactsOfficiels'
+import { formatFCFA } from '../utils/format'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Espace campeur (Phase 6)
@@ -15,7 +16,6 @@ function normaliserTelephone(val: string): string {
   return c
 }
 
-function formatFCFA(n: number) { return n.toLocaleString('fr-FR') + ' F CFA' }
 
 interface Profil { id: string; nom: string; prenoms: string }
 interface Versement { montant: number; date_versement: string }

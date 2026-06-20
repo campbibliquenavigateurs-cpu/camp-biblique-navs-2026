@@ -4,6 +4,7 @@ import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
+import { formatFCFA } from '../utils/format'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Gestion des inscriptions (Phase 7)
@@ -38,7 +39,6 @@ interface Inscription {
 
 interface Versement { id: string; montant: number; date_versement: string }
 
-function formatFCFA(n: number) { return (n ?? 0).toLocaleString('fr-FR') + ' F CFA' }
 
 function solde(ins: Inscription) {
   return Math.max(0, (ins.montant_du ?? 0) - (ins.reduction_accordee ?? 0) - (ins.montant_paye ?? 0))
