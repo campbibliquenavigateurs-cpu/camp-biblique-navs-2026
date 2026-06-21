@@ -84,7 +84,7 @@ function CarteTemoignage({ temoignage, nomCommission, dejaReagi, onReagir, vedet
           <Pin className="w-2.5 h-2.5" strokeWidth={2} /> À la une
         </span>
       )}
-      <p className="text-sm text-[#1B3B1A] leading-relaxed flex-1 mb-3">{temoignage.contenu}</p>
+      <p className="text-sm text-[#1B3B1A] leading-relaxed flex-1 mb-3 whitespace-pre-line">{temoignage.contenu}</p>
       <div className="flex items-center justify-between text-xs text-gray-400">
         <span>
           {nomAffiche}

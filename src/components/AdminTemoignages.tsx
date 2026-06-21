@@ -182,7 +182,7 @@ export default function AdminTemoignages() {
                   <tr><td colSpan={4} className="px-4 py-5 text-center text-gray-400">Aucun témoignage en attente.</td></tr>
                 ) : paginer(aValider, pageAValider, PAR_PAGE).map(t => (
                   <tr key={t.id} className="text-[#1B3B1A] align-top">
-                    <td className="px-4 py-2.5 max-w-xs"><p className="whitespace-normal line-clamp-2">{t.contenu}</p></td>
+                    <td className="px-4 py-2.5 max-w-xs"><p className="whitespace-pre-line line-clamp-2">{t.contenu}</p></td>
                     <td className="px-4 py-2.5 text-gray-500">{nomAuteur(t)}</td>
                     <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(t.created_at)}</td>
                     <td className="px-4 py-2.5">
@@ -225,7 +225,7 @@ export default function AdminTemoignages() {
                   <tr><td colSpan={5} className="px-4 py-5 text-center text-gray-400">Aucun témoignage publié.</td></tr>
                 ) : paginer(enLigne, pageEnLigne, PAR_PAGE).map(t => (
                   <tr key={t.id} className="text-[#1B3B1A] align-top">
-                    <td className="px-4 py-2.5 max-w-xs"><p className="whitespace-normal line-clamp-2">{t.contenu}</p></td>
+                    <td className="px-4 py-2.5 max-w-xs"><p className="whitespace-pre-line line-clamp-2">{t.contenu}</p></td>
                     <td className="px-4 py-2.5 text-gray-500">{nomAuteur(t)}</td>
                     <td className="px-4 py-2.5 text-gray-500">{t.nb_reactions}</td>
                     <td className="px-4 py-2.5"><ToggleVisible visible={t.epingle} onBasculer={() => basculerEpingle(t)} /></td>
