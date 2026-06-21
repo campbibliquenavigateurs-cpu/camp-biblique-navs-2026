@@ -1,87 +1,130 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { Search, ChevronLeft, Music } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { SkeletonLecteurAudio } from './Skeleton'
 
 // ============================================================
-// Camp Biblique-Navs 2026 — Affichage public des chants
-// Lecture libre (sans connexion) — RLS "chants_select_public" (Phase 2)
+// Camp Biblique-Navs 2026 — Louange & Médias (Phase 22)
+// Carnet de chants : recherche/filtre, puis vue lecture avec
+// lecteur audio personnalisé. Le lecteur (et ses contrôles) n'est
+// chargé qu'à l'ouverture effective d'un chant (React.lazy),
+// pour ne jamais alourdir le chargement initial du carnet.
 // ============================================================
+
+const LecteurChant = lazy(() => import('./LecteurChant'))
 
 interface Chant {
   id: string
+  numero: number | null
   titre: string
-  auteur: string | null
-  lien_audio: string | null
+  thematique: string | null
   paroles: string | null
+  url_audio: string | null
 }
 
 export default function ChantsPublic() {
   const [chants, setChants] = useState<Chant[]>([])
   const [chargement, setChargement] = useState(true)
-  const [ouverts, setOuverts] = useState<Record<string, boolean>>({})
+  const [recherche, setRecherche] = useState('')
+  const [thematiqueFiltre, setThematiqueFiltre] = useState('')
+  const [chantOuvert, setChantOuvert] = useState<Chant | null>(null)
 
   useEffect(() => {
     async function charger() {
-      const { data, error } = await supabase.from('chants').select('*').order('titre', { ascending: true })
+      const { data, error } = await supabase.from('chants').select('id,numero,titre,thematique,paroles,url_audio').order('numero')
       if (!error && data) setChants(data as Chant[])
       setChargement(false)
     }
     charger()
   }, [])
 
-  function basculer(id: string) {
-    setOuverts(prev => ({ ...prev, [id]: !prev[id] }))
+  const thematiques = useMemo(
+    () => [...new Set(chants.map(c => c.thematique).filter((t): t is string => !!t))],
+    [chants]
+  )
+
+  const chantsFiltres = useMemo(() => {
+    const q = recherche.trim().toLowerCase()
+    return chants.filter(c => {
+      const correspondRecherche = q === '' || c.titre.toLowerCase().includes(q) || String(c.numero ?? '').includes(q)
+      const correspondThematique = thematiqueFiltre === '' || c.thematique === thematiqueFiltre
+      return correspondRecherche && correspondThematique
+    })
+  }, [chants, recherche, thematiqueFiltre])
+
+  if (chantOuvert) {
+    return (
+      <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
+        <div className="max-w-xl mx-auto">
+          <button type="button" onClick={() => setChantOuvert(null)}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5B7A56] hover:text-[#1B3B1A] mb-4">
+            <ChevronLeft className="w-4 h-4" strokeWidth={2} />
+            Retour au carnet
+          </button>
+
+          <Suspense fallback={<SkeletonLecteurAudio />}>
+            <LecteurChant
+              urlAudio={chantOuvert.url_audio}
+              paroles={chantOuvert.paroles}
+              titre={chantOuvert.numero ? `${chantOuvert.numero}. ${chantOuvert.titre}` : chantOuvert.titre}
+            />
+          </Suspense>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
-      <div className="max-w-2xl mx-auto space-y-4">
-        <h1 className="text-2xl font-bold text-[#1B3B1A]">Louange &amp; Chants</h1>
+      <div className="max-w-xl mx-auto">
+        <h1 className="text-2xl font-bold text-[#1B3B1A] mb-6 text-center">Carnet de Louange</h1>
 
-        {chargement ? (
-          <p className="text-center text-sm text-gray-400 py-8">Chargement...</p>
-        ) : chants.length === 0 ? (
-          <p className="text-center text-sm text-gray-400 py-8">Aucun chant disponible pour le moment.</p>
-        ) : (
-          chants.map(chant => (
-            <div key={chant.id} className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm overflow-hidden">
-              <button
-                type="button"
-                onClick={() => basculer(chant.id)}
-                className="w-full flex items-center justify-between p-4 text-left"
-              >
-                <div>
-                  <p className="font-semibold text-[#1B3B1A]">{chant.titre}</p>
-                  {chant.auteur && <p className="text-xs text-gray-400">{chant.auteur}</p>}
-                </div>
-                <span className="text-[#4F8A3D] text-sm">{ouverts[chant.id] ? '−' : '+'}</span>
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" strokeWidth={1.8} />
+          <input
+            type="text"
+            value={recherche}
+            onChange={e => setRecherche(e.target.value)}
+            placeholder="Rechercher par numéro ou titre..."
+            className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F8A3D]"
+          />
+        </div>
+
+        {thematiques.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button type="button" onClick={() => setThematiqueFiltre('')}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors duration-200 ${thematiqueFiltre === '' ? 'bg-[#4F8A3D] text-white' : 'bg-white text-[#5B7A56] hover:bg-[#E7F2DE]'}`}>
+              Toutes
+            </button>
+            {thematiques.map(t => (
+              <button key={t} type="button" onClick={() => setThematiqueFiltre(t)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors duration-200 ${thematiqueFiltre === t ? 'bg-[#4F8A3D] text-white' : 'bg-white text-[#5B7A56] hover:bg-[#E7F2DE]'}`}>
+                {t}
               </button>
-
-              <div
-                className={`overflow-hidden transition-all duration-300 ${
-                  ouverts[chant.id] ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
-                }`}
-              >
-                <div className="px-4 pb-4 space-y-3">
-                  {chant.lien_audio && (
-                    <a
-                      href={chant.lien_audio}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4F8A3D] hover:underline"
-                    >
-                      ▶ Écouter le morceau
-                    </a>
-                  )}
-                  {chant.paroles ? (
-                    <p className="text-sm text-gray-600 whitespace-pre-line">{chant.paroles}</p>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Paroles non disponibles.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
+
+        <div className="bg-white rounded-2xl shadow-sm divide-y divide-[#E7F2DE] overflow-hidden">
+          {chargement ? (
+            <p className="px-5 py-4 text-sm text-gray-400">Chargement...</p>
+          ) : chantsFiltres.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-gray-400">Aucun chant trouvé.</p>
+          ) : chantsFiltres.map(c => (
+            <button key={c.id} type="button" onClick={() => setChantOuvert(c)}
+              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#F4F9F0] text-left transition-colors duration-150">
+              <span className="text-sm text-[#1B3B1A]">
+                {c.numero && <span className="text-gray-400 mr-2">{c.numero}.</span>}
+                {c.titre}
+              </span>
+              {c.url_audio && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-[#E7F2DE] text-[#4F8A3D] px-2 py-0.5 rounded-full shrink-0">
+                  <Music className="w-2.5 h-2.5" strokeWidth={2} /> Audio
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

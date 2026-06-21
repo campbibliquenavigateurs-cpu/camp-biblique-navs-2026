@@ -74,3 +74,22 @@ export function SkeletonTemoignage() {
     </div>
   )
 }
+
+export function SkeletonLecteurAudio() {
+  return (
+    <div className="animate-pulse bg-white rounded-2xl shadow-sm">
+      <div className="p-5 border-b border-[#E7F2DE] flex items-center gap-3">
+        <div className="w-11 h-11 rounded-full bg-[#E7F2DE] shrink-0" />
+        <div className="flex-1 h-1.5 rounded-full bg-[#E7F2DE]" />
+        <div className="w-16 h-1.5 rounded-full bg-[#E7F2DE] shrink-0" />
+      </div>
+      <div className="p-5 space-y-2.5">
+        <div className="h-4 w-1/2 rounded bg-[#E7F2DE] mb-3" />
+        <div className="h-3 w-full rounded bg-[#E7F2DE]" />
+        <div className="h-3 w-5/6 rounded bg-[#E7F2DE]" />
+        <div className="h-3 w-full rounded bg-[#E7F2DE]" />
+        <div className="h-3 w-2/3 rounded bg-[#E7F2DE]" />
+      </div>
+    </div>
+  )
+}

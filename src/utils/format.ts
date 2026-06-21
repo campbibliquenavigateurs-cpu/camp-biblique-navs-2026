@@ -27,3 +27,10 @@ export function formatTailleOctets(octets: number | null | undefined): string {
   if (mo < 1024) return `${mo.toFixed(1)} Mo`
   return `${(mo / 1024).toFixed(1)} Go`
 }
+
+export function formatDureeAudio(secondes: number): string {
+  if (!Number.isFinite(secondes) || secondes < 0) return '0:00'
+  const m = Math.floor(secondes / 60)
+  const s = Math.floor(secondes % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
