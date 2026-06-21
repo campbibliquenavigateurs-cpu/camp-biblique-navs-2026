@@ -131,10 +131,12 @@ export default function EvaluationStats() {
     const notees = rubriques.filter(r => r.nb_votes > 0)
     const triees = [...notees].sort((a, b) => b.note_moyenne - a.note_moyenne)
     const top = triees.slice(0, 3)
-    const idsTop = new Set(top.map(r => r.rubrique_id))
-    // Le Flop 3 ne reprend jamais une rubrique déjà comptée dans le Top 3
-    // (cas possible quand il y a peu de rubriques notées au total).
-    const flop = [...triees].reverse().filter(r => !idsTop.has(r.rubrique_id)).slice(0, 3)
+    // Seuil = la plus petite note retenue dans le Top 3. Le Flop 3 exclut
+    // toute note ÉGALE OU SUPÉRIEURE à ce seuil — pas seulement les mêmes
+    // rubriques — pour ne jamais qualifier une même valeur de "bonne"
+    // pour l'une et de "à surveiller" pour une autre rubrique à égalité.
+    const seuilTop = top.length > 0 ? top[top.length - 1].note_moyenne : -Infinity
+    const flop = [...triees].reverse().filter(r => r.note_moyenne < seuilTop).slice(0, 3)
     return { top3: top, flop3: flop }
   }, [rubriques])
 
