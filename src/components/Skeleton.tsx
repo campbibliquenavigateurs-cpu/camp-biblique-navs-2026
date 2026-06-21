@@ -60,3 +60,17 @@ export function SkeletonCarteDossier() {
     </div>
   )
 }
+
+export function SkeletonTemoignage() {
+  return (
+    <div className="animate-pulse bg-white rounded-2xl shadow-sm p-5">
+      <div className="h-3 w-5/6 rounded bg-[#E7F2DE] mb-2" />
+      <div className="h-3 w-full rounded bg-[#E7F2DE] mb-2" />
+      <div className="h-3 w-2/3 rounded bg-[#E7F2DE] mb-4" />
+      <div className="flex items-center justify-between">
+        <div className="h-3 w-1/3 rounded bg-[#E7F2DE]" />
+        <div className="h-5 w-8 rounded-full bg-[#E7F2DE]" />
+      </div>
+    </div>
+  )
+}
