@@ -9,6 +9,7 @@ import {
   BarChart3,
   Settings,
   ClipboardList,
+  Users,
   MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react'
@@ -42,6 +43,7 @@ const MENU_PAR_ROLE: Record<string, ItemMenu[]> = {
     { label: 'Santé', path: 'sante' },
     { label: 'Modération', path: 'moderation' },
     { label: 'Évaluations', path: 'evaluations' },
+    { label: 'Liste d\'attente', path: 'liste-attente' },
     { label: 'Paramètres', path: 'parametres' },
   ],
   comite_treso: [{ label: 'Trésorerie', path: 'tresorerie' }],
@@ -71,6 +73,7 @@ const ICONES_PAR_CHEMIN: Record<string, LucideIcon> = {
   moderation: ShieldCheck,
   contenus: FileText,
   evaluations: BarChart3,
+  'liste-attente': Users,
   parametres: Settings,
 }
 

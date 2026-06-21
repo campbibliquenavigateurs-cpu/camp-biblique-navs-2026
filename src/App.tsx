@@ -18,6 +18,7 @@ import AdminTemoignages from './components/AdminTemoignages'
 import ContenusAdmin from './components/ContenusAdmin'
 import EvaluationStats from './components/EvaluationStats'
 import ParametresAdmin from './components/ParametresAdmin'
+import ListeAttenteAdmin from './components/ListeAttenteAdmin'
 import GestionInscriptions from './components/GestionInscriptions'
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
             <Route path="contenus" element={<ContenusAdmin />} />
             <Route path="evaluations" element={<EvaluationStats />} />
             <Route path="parametres" element={<ParametresAdmin />} />
+            <Route path="liste-attente" element={<ListeAttenteAdmin />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
