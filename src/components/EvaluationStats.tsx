@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import AccesRestreint from './AccesRestreint'
@@ -23,6 +23,7 @@ const CRITERES: { cle: Critere; colonne: string; label: string }[] = [
 ]
 
 interface LigneEvaluation {
+  id: string
   note_enseignements: number | null
   note_logistique: number | null
   note_restauration: number | null
@@ -39,7 +40,7 @@ export default function EvaluationStats() {
     setChargement(true)
     const { data, error } = await supabase
       .from('evaluations')
-      .select('note_enseignements, note_logistique, note_restauration, note_ambiance, commentaire')
+      .select('id, note_enseignements, note_logistique, note_restauration, note_ambiance, commentaire')
     if (!error && data) setLignes(data as LigneEvaluation[])
     setChargement(false)
   }, [])
@@ -54,7 +55,14 @@ export default function EvaluationStats() {
     return valeurs.reduce((acc, v) => acc + v, 0) / valeurs.length
   }
 
-  const suggestions = lignes.map(l => l.commentaire).filter((c): c is string => !!c && c.trim() !== '')
+  // Clé stable (id de l'évaluation) plutôt que l'index de la liste —
+  // évite tout décalage visuel si la liste change entre deux rendus.
+  const suggestions = useMemo(
+    () => lignes
+      .filter(l => !!l.commentaire && l.commentaire.trim() !== '')
+      .map(l => ({ id: l.id, texte: l.commentaire as string })),
+    [lignes]
+  )
 
   if (statutAcces === 'verification') {
     return (
@@ -107,9 +115,9 @@ export default function EvaluationStats() {
             <p className="text-sm text-gray-400">Aucune suggestion pour le moment.</p>
           ) : (
             <ul className="space-y-2 max-h-80 overflow-y-auto">
-              {suggestions.map((s, i) => (
-                <li key={i} className="text-sm text-gray-600 border-b border-gray-50 last:border-0 pb-2 last:pb-0">
-                  {s}
+              {suggestions.map(s => (
+                <li key={s.id} className="text-sm text-gray-600 border-b border-gray-50 last:border-0 pb-2 last:pb-0">
+                  {s.texte}
                 </li>
               ))}
             </ul>

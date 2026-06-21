@@ -18,7 +18,7 @@ function normaliserTelephone(val: string): string {
 
 
 interface Profil { id: string; nom: string; prenoms: string }
-interface Versement { montant: number; date_versement: string }
+interface Versement { id: string; montant: number; date_versement: string }
 interface Inscription {
   categorie: string
   taille_polo: string | null
@@ -238,8 +238,8 @@ export default function MonInscription() {
               <div className="px-5 py-4 border-t border-[#E7F2DE]">
                 <p className="text-sm font-semibold text-[#1B3B1A] mb-2">Historique de vos versements</p>
                 <ul className="space-y-1.5">
-                  {versements.map((v, i) => (
-                    <li key={i} className="text-sm text-gray-600">
+                  {versements.map(v => (
+                    <li key={v.id} className="text-sm text-gray-600">
                       • {formatFCFA(v.montant)} — reçu le {new Date(v.date_versement).toLocaleDateString('fr-FR')}
                     </li>
                   ))}

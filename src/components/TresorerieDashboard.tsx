@@ -4,6 +4,7 @@ import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import { formatFCFA, formatDateFr } from '../utils/format'
 import { Modale, BoutonSupprimer, BoutonModifier, Pagination, CarteKPI, paginer } from './ComposantsTableau'
+import { SkeletonCarteKPI } from './Skeleton'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
 
@@ -892,10 +893,18 @@ export default function TresorerieDashboard() {
             </section>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <CarteKPI label="Solde réel de trésorerie" valeur={chargement ? '—' : formatFCFA(soldeReel)} accent="text-[#4F8A3D]" />
-              <CarteKPI label="Total entrées réelles" valeur={chargement ? '—' : formatFCFA(totalRessourcesReelles)} />
-              <CarteKPI label="Total sorties" valeur={chargement ? '—' : formatFCFA(totalSorties)} accent="text-[#B3492F]" />
-              <CarteKPI label="Taux d'atteinte réel" valeur={chargement ? '—' : `${Math.round(tauxAtteinteReel * 10) / 10}%`} accent="text-[#D9A441]" />
+              {chargement ? (
+                <>
+                  <SkeletonCarteKPI /><SkeletonCarteKPI /><SkeletonCarteKPI /><SkeletonCarteKPI />
+                </>
+              ) : (
+                <>
+                  <CarteKPI label="Solde réel de trésorerie" valeur={formatFCFA(soldeReel)} accent="text-[#4F8A3D]" />
+                  <CarteKPI label="Total entrées réelles" valeur={formatFCFA(totalRessourcesReelles)} />
+                  <CarteKPI label="Total sorties" valeur={formatFCFA(totalSorties)} accent="text-[#B3492F]" />
+                  <CarteKPI label="Taux d'atteinte réel" valeur={`${Math.round(tauxAtteinteReel * 10) / 10}%`} accent="text-[#D9A441]" />
+                </>
+              )}
             </div>
 
             <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">

@@ -564,9 +564,17 @@ export default function LogistiqueDashboard() {
   }
 
   // ---- KPI (onglet Rapports) ----
-  const totalArticles = materiels.reduce((s, m) => s + (m.quantite_depart ?? 0), 0)
-  const totalRetourBonEtat = materiels.reduce((s, m) => s + (m.quantite_retournee_bon_etat ?? 0), 0)
-  const tauxRestitution = totalArticles > 0 ? (totalRetourBonEtat / totalArticles) * 100 : 0
+  // Recalculés seulement quand "materiels" ou "vehicules" changent
+  // réellement, pas à chaque rendu (changement d'onglet, frappe dans
+  // un champ de recherche, etc.).
+  const { totalArticles, tauxRestitution } = useMemo(() => {
+    const total = materiels.reduce((s, m) => s + (m.quantite_depart ?? 0), 0)
+    const retourBonEtat = materiels.reduce((s, m) => s + (m.quantite_retournee_bon_etat ?? 0), 0)
+    return {
+      totalArticles: total,
+      tauxRestitution: total > 0 ? (retourBonEtat / total) * 100 : 0,
+    }
+  }, [materiels])
   const nombreVehicules = vehicules.length
 
   // ---- Export Excel consolidé (3 feuilles) ----

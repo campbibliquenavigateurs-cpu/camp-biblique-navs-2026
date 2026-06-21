@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Bell, Info, type LucideIcon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { SkeletonCarteAnnonce } from './Skeleton'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Annonces & Flash Infos (édition Premium v2)
@@ -205,7 +206,11 @@ export default function AnnoncesPublic() {
         <h1 className="text-2xl font-bold text-[#1B3B1A] mb-6 text-center">Annonces &amp; Flash Infos</h1>
 
         {chargement ? (
-          <p className="text-center text-sm text-gray-400">Chargement...</p>
+          <div className="space-y-3">
+            <SkeletonCarteAnnonce />
+            <SkeletonCarteAnnonce />
+            <SkeletonCarteAnnonce />
+          </div>
         ) : annonces.length === 0 ? (
           <EtatVide />
         ) : (

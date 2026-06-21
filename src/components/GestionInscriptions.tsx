@@ -5,6 +5,7 @@ import { useToast } from './Toast'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
 import { formatFCFA } from '../utils/format'
+import { SkeletonTableau } from './Skeleton'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Gestion des inscriptions (Phase 7)
@@ -461,7 +462,7 @@ export default function GestionInscriptions() {
             </thead>
             <tbody className="divide-y divide-[#E7F2DE]">
               {chargement ? (
-                <tr><td colSpan={12} className="px-4 py-6 text-center text-gray-400">Chargement...</td></tr>
+                <SkeletonTableau lignes={6} colonnes={12} />
               ) : lignesPage.length === 0 ? (
                 <tr><td colSpan={12} className="px-4 py-6 text-center text-gray-400">Aucune inscription trouvée.</td></tr>
               ) : (

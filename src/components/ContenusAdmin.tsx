@@ -7,8 +7,14 @@ import PreparationAdmin from './PreparationAdmin'
 // ============================================================
 // Camp Biblique-Navs 2026 — Onglet "Contenus" (Phase 4, Étape A)
 // Regroupe les back-offices de contenus publics sous un seul
-// onglet du menu, pour ne pas surcharger la liste demandée par
-// Gimini. Préparation (checklist + règlement) ajoutée en Phase 14.
+// onglet du menu. Préparation (checklist + règlement) ajoutée
+// en Phase 14.
+//
+// Phase 16 (performance) : les 4 sous-écrans restent montés en
+// permanence (juste masqués en CSS via "hidden") plutôt que d'être
+// détruits/recréés à chaque changement d'onglet — chacun ne charge
+// donc ses données qu'une seule fois, même si l'on navigue plusieurs
+// fois entre les onglets.
 // ============================================================
 
 type Onglet = 'annonces' | 'chants' | 'documents' | 'preparation'
@@ -42,10 +48,10 @@ export default function ContenusAdmin() {
         ))}
       </div>
 
-      {onglet === 'annonces' && <AdminAnnonces />}
-      {onglet === 'chants' && <AdminChants />}
-      {onglet === 'documents' && <AdminDocuments />}
-      {onglet === 'preparation' && <PreparationAdmin />}
+      <div className={onglet === 'annonces' ? '' : 'hidden'}><AdminAnnonces /></div>
+      <div className={onglet === 'chants' ? '' : 'hidden'}><AdminChants /></div>
+      <div className={onglet === 'documents' ? '' : 'hidden'}><AdminDocuments /></div>
+      <div className={onglet === 'preparation' ? '' : 'hidden'}><PreparationAdmin /></div>
     </div>
   )
 }
