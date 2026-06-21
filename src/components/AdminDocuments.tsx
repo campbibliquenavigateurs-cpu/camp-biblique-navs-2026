@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Paperclip } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import { formatTailleOctets } from '../utils/format'
@@ -160,10 +161,19 @@ function ModaleDocument({ donnee, dossiers, onFermer, onSauvegarde }: {
           <label className="block text-sm font-medium text-[#1B3B1A] mb-1">
             Fichier {donnee && <span className="text-gray-400 font-normal">(laisser vide pour ne pas remplacer)</span>}
           </label>
-          <input type="file" onChange={e => setFichier(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-gray-600" />
+          <input
+            type="file"
+            onChange={e => setFichier(e.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#4F8A3D] file:text-white hover:file:bg-[#3F7530] file:cursor-pointer cursor-pointer"
+          />
+          {fichier && (
+            <p className="flex items-center gap-1.5 text-xs text-[#4F8A3D] mt-1.5 font-medium">
+              <Paperclip className="w-3.5 h-3.5" strokeWidth={1.8} />
+              {fichier.name} ({formatTailleOctets(fichier.size)})
+            </p>
+          )}
           {donnee && !fichier && (
-            <p className="text-xs text-gray-400 mt-1">Fichier actuel conservé ({formatTailleOctets(donnee.taille_octets)})</p>
+            <p className="text-xs text-gray-400 mt-1.5">Fichier actuel conservé ({formatTailleOctets(donnee.taille_octets)})</p>
           )}
         </div>
         <button type="button" onClick={soumettre} disabled={!valide || envoi}
@@ -214,11 +224,13 @@ export default function AdminDocuments() {
   }, [dossiers])
 
   async function basculerVisibiliteDossier(d: Dossier) {
-    await supabase.from('dossiers_documents').update({ visible: !d.visible }).eq('id', d.id)
+    const { error } = await supabase.from('dossiers_documents').update({ visible: !d.visible }).eq('id', d.id)
+    if (error) { toast.erreur("Impossible de modifier la visibilité de ce dossier."); console.error(error); return }
     charger()
   }
   async function basculerVisibiliteDocument(doc: DocumentLigne) {
-    await supabase.from('documents').update({ visible: !doc.visible }).eq('id', doc.id)
+    const { error } = await supabase.from('documents').update({ visible: !doc.visible }).eq('id', doc.id)
+    if (error) { toast.erreur("Impossible de modifier la visibilité de ce document."); console.error(error); return }
     charger()
   }
 
