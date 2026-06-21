@@ -130,7 +130,12 @@ export default function EvaluationStats() {
   const { top3, flop3 } = useMemo(() => {
     const notees = rubriques.filter(r => r.nb_votes > 0)
     const triees = [...notees].sort((a, b) => b.note_moyenne - a.note_moyenne)
-    return { top3: triees.slice(0, 3), flop3: [...triees].reverse().slice(0, 3) }
+    const top = triees.slice(0, 3)
+    const idsTop = new Set(top.map(r => r.rubrique_id))
+    // Le Flop 3 ne reprend jamais une rubrique déjà comptée dans le Top 3
+    // (cas possible quand il y a peu de rubriques notées au total).
+    const flop = [...triees].reverse().filter(r => !idsTop.has(r.rubrique_id)).slice(0, 3)
+    return { top3: top, flop3: flop }
   }, [rubriques])
 
   async function basculerOuverture() {
@@ -218,7 +223,11 @@ export default function EvaluationStats() {
               </div>
               <div className="bg-white rounded-xl border border-[#E7F2DE] shadow-sm p-4">
                 <p className="text-xs text-gray-400 mb-1.5">Flop 3 — à surveiller</p>
-                {flop3.length === 0 ? <p className="text-xs text-gray-300">Aucun vote encore</p> : flop3.map(r => (
+                {rubriques.filter(r => r.nb_votes > 0).length === 0 ? (
+                  <p className="text-xs text-gray-300">Aucun vote encore</p>
+                ) : flop3.length === 0 ? (
+                  <p className="text-xs text-gray-300">Pas assez de rubriques distinctes</p>
+                ) : flop3.map(r => (
                   <p key={r.rubrique_id} className="text-xs text-[#1B3B1A] flex justify-between"><span>{r.nom}</span><span className="font-semibold text-[#B3492F]">{r.note_moyenne}/5</span></p>
                 ))}
               </div>
