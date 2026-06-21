@@ -279,6 +279,7 @@ function FicheUrgence({ campeur, commissions, profil, suivi, consultationsPatien
   const [commissionId, setCommissionId] = useState(campeur.commission_id ?? '')
   const [envoi, setEnvoi] = useState(false)
   const [pageHistorique, setPageHistorique] = useState(1)
+  const [confirmationConsultationId, setConfirmationConsultationId] = useState<string | null>(null)
 
   async function enregistrerProfil() {
     setEnvoi(true)
@@ -302,6 +303,14 @@ function FicheUrgence({ campeur, commissions, profil, suivi, consultationsPatien
       inscription_id: campeur.id, date_jour: dateJour, moment, pris: !actuel,
     }, { onConflict: 'inscription_id,date_jour,moment' })
     if (error) { toast.erreur('Erreur lors de la mise à jour.'); return }
+    onMaj()
+  }
+
+  async function supprimerConsultation(id: string) {
+    setConfirmationConsultationId(null)
+    const { error } = await supabase.from('consultations_medicales').delete().eq('id', id)
+    if (error) { toast.erreur('Erreur lors de la suppression.'); return }
+    toast.succes('Consultation supprimée.')
     onMaj()
   }
 
@@ -422,7 +431,15 @@ function FicheUrgence({ campeur, commissions, profil, suivi, consultationsPatien
                     <div key={c.id} className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-semibold text-[#1B3B1A]">{c.motif || (c.type_entree === 'dispense_rapide' ? 'Dispense rapide' : '—')}</span>
-                        <span className="text-xs text-gray-400">{formatDateFr(c.created_at)}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-gray-400">{formatDateFr(c.created_at)}</span>
+                          <BoutonSupprimer
+                            id={c.id}
+                            enConfirmation={confirmationConsultationId}
+                            onDemanderConfirmation={setConfirmationConsultationId}
+                            onConfirmer={() => supprimerConsultation(c.id)}
+                          />
+                        </div>
                       </div>
                       {(c.temperature || c.tension) && (
                         <p className="text-xs text-gray-500">{c.temperature ? `${c.temperature}°C` : ''}{c.temperature && c.tension ? ' · ' : ''}{c.tension ?? ''}</p>
@@ -675,6 +692,14 @@ export default function SanteDashboard() {
     charger()
   }
 
+  async function supprimerConsultation(id: string) {
+    setConfirmationId(null)
+    const { error } = await supabase.from('consultations_medicales').delete().eq('id', id)
+    if (error) { toast.erreur('Erreur lors de la suppression.'); return }
+    toast.succes('Consultation supprimée.')
+    charger()
+  }
+
   function ouvrirFicheDepuisConsultation(inscriptionId: string) {
     const c = inscriptions.find(i => i.id === inscriptionId)
     if (c) setCampeurOuvert(c)
@@ -922,13 +947,14 @@ export default function SanteDashboard() {
                       <th className="px-4 py-2.5 font-medium">Constantes</th>
                       <th className="px-4 py-2.5 font-medium">Sortie</th>
                       <th className="px-4 py-2.5 font-medium">Date</th>
+                      <th className="px-4 py-2.5 font-medium"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E7F2DE]">
                     {chargement ? (
-                      <SkeletonTableau lignes={5} colonnes={5} />
+                      <SkeletonTableau lignes={5} colonnes={6} />
                     ) : consultations.length === 0 ? (
-                      <tr><td colSpan={5} className="px-4 py-5 text-center text-gray-400">Aucune consultation enregistrée.</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-5 text-center text-gray-400">Aucune consultation enregistrée.</td></tr>
                     ) : paginer(consultations, pageConsultations, PAR_PAGE).map(c => {
                       const badge = badgeStatutSortie(c.statut_sortie)
                       return (
@@ -946,6 +972,9 @@ export default function SanteDashboard() {
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>
                           </td>
                           <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDateFr(c.created_at)}</td>
+                          <td className="px-4 py-2.5">
+                            <BoutonSupprimer id={c.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimerConsultation(c.id)} />
+                          </td>
                         </tr>
                       )
                     })}
