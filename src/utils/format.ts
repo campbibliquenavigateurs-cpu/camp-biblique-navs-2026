@@ -17,3 +17,13 @@ export function formatDateFr(date: string | Date | null | undefined): string {
   if (!date) return '—'
   return new Date(date).toLocaleDateString('fr-FR')
 }
+
+export function formatTailleOctets(octets: number | null | undefined): string {
+  if (!octets || octets <= 0) return '—'
+  if (octets < 1024) return `${octets} o`
+  const ko = octets / 1024
+  if (ko < 1024) return `${ko.toFixed(1)} Ko`
+  const mo = ko / 1024
+  if (mo < 1024) return `${mo.toFixed(1)} Mo`
+  return `${(mo / 1024).toFixed(1)} Go`
+}

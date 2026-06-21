@@ -50,3 +50,13 @@ export function SkeletonCarteKPI() {
     </div>
   )
 }
+
+export function SkeletonCarteDossier() {
+  return (
+    <div className="animate-pulse bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5 flex flex-col items-center text-center">
+      <div className="w-12 h-12 rounded-xl bg-[#E7F2DE] mb-3" />
+      <div className="h-4 w-2/3 rounded bg-[#E7F2DE] mb-1.5" />
+      <div className="h-3 w-1/3 rounded bg-[#E7F2DE]" />
+    </div>
+  )
+}
