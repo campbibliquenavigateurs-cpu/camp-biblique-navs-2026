@@ -9,7 +9,7 @@ import { type ReactNode } from 'react'
 
 export function Modale({ titre, onFermer, children }: { titre: string; onFermer: () => void; children: ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-8 overflow-y-auto" onClick={onFermer}>
+    <div className="fixed inset-0 h-dvh w-full z-50 flex items-center justify-center bg-black/40 px-4 py-8 overflow-y-auto" onClick={onFermer}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 my-auto max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <p className="text-base font-bold text-[#1B3B1A]">{titre}</p>

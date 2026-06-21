@@ -5,6 +5,7 @@ import PublicLayout from './components/PublicLayout'
 import ComiteLayout from './components/ComiteLayout'
 import Home from './components/Home'
 import InscriptionForm from './components/InscriptionForm'
+import MiseAJourDisponible from './components/MiseAJourDisponible'
 
 // ============================================================
 // Camp Biblique-Navs 2026 — Routeur principal (Phase 16, performance)
@@ -46,6 +47,7 @@ function ChargementRoute() {
 function App() {
   return (
     <ToastProvider>
+      <MiseAJourDisponible />
       <BrowserRouter>
         <Suspense fallback={<ChargementRoute />}>
           <Routes>
