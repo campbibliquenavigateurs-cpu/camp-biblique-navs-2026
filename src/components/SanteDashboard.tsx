@@ -581,12 +581,30 @@ export default function SanteDashboard() {
         {/* ============================================================ */}
         {sousEcran === 'main_courante' && (
           <>
+            <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-[#E7F2DE]">
+                <p className="text-sm font-bold text-[#1B3B1A]">Stock pharmacie {medicaments.length > 0 && `(${medicaments.length})`}</p>
+                <button type="button" onClick={() => setModaleMedicament(true)} className="text-xs font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] px-3 py-1.5 rounded-lg">
+                  + Ajouter un médicament
+                </button>
+              </div>
+              <div className="divide-y divide-[#E7F2DE]">
+                {medicaments.length === 0 ? (
+                  <p className="px-5 py-4 text-sm text-gray-400">Aucun médicament enregistré dans le stock.</p>
+                ) : medicaments.map(m => (
+                  <div key={m.id} className="flex items-center justify-between px-5 py-3">
+                    <p className="text-sm font-medium text-[#1B3B1A]">{m.nom}</p>
+                    <span className={`text-sm font-semibold ${m.quantite_stock <= 0 ? 'text-[#B3492F]' : 'text-[#4F8A3D]'}`}>
+                      {m.quantite_stock} {m.unite ?? ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-bold text-[#1B3B1A]">Nouvelle consultation</p>
-                <button type="button" onClick={() => setModaleMedicament(true)} className="text-xs font-semibold text-[#5B7A56] hover:text-[#1B3B1A]">
-                  + Ajouter un médicament au stock
-                </button>
               </div>
 
               {!campeurConsultation ? (
