@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Heart, X, Pin } from 'lucide-react'
+import { Heart, X, Pin, Share2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import { formatDateFr } from '../utils/format'
@@ -48,6 +48,7 @@ function CarteTemoignage({ temoignage, nomCommission, dejaReagi, onReagir, vedet
   onReagir: (id: string) => void
   vedette?: boolean
 }) {
+  const toast = useToast()
   const [anime, setAnime] = useState(false)
 
   function gererClic() {
@@ -58,6 +59,23 @@ function CarteTemoignage({ temoignage, nomCommission, dejaReagi, onReagir, vedet
   }
 
   const commission = nomCommission(temoignage.commission_id)
+  const nomAffiche = temoignage.anonyme ? 'Anonyme' : (temoignage.prenom_auteur || 'Anonyme')
+
+  async function partager() {
+    const texte = `« ${temoignage.contenu} »\n— ${nomAffiche}, Camp Biblique-Navs 2026`
+    const url = `${window.location.origin}/temoignages`
+    const partageNatif = (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share
+    if (partageNatif) {
+      try { await partageNatif.call(navigator, { text: texte, url }) } catch { /* annulé par la personne, rien à faire */ }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(`${texte}\n${url}`)
+      toast.succes('Témoignage copié, prêt à partager !')
+    } catch {
+      toast.erreur('Impossible de copier le témoignage.')
+    }
+  }
 
   return (
     <div className={`apparition bg-white rounded-2xl shadow-sm p-5 flex flex-col ${vedette ? 'ring-2 ring-[#D9A441] relative' : ''}`}>
@@ -69,20 +87,26 @@ function CarteTemoignage({ temoignage, nomCommission, dejaReagi, onReagir, vedet
       <p className="text-sm text-[#1B3B1A] leading-relaxed flex-1 mb-3">{temoignage.contenu}</p>
       <div className="flex items-center justify-between text-xs text-gray-400">
         <span>
-          {temoignage.anonyme ? 'Anonyme' : (temoignage.prenom_auteur || 'Anonyme')}
+          {nomAffiche}
           {!temoignage.anonyme && commission && ` · ${commission}`}
           {' · '}{formatDateFr(temoignage.created_at)}
         </span>
-        <button
-          type="button"
-          onClick={gererClic}
-          disabled={dejaReagi}
-          title={dejaReagi ? 'Vous avez déjà encouragé ce témoignage' : 'Encourager'}
-          className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors duration-150 ${dejaReagi ? 'text-[#B3492F]' : 'text-gray-400 hover:text-[#B3492F]'}`}
-        >
-          <Heart className={`w-4 h-4 ${anime ? 'coeur-anime' : ''}`} fill={dejaReagi ? 'currentColor' : 'none'} strokeWidth={1.8} />
-          <span className="font-semibold">{temoignage.nb_reactions}</span>
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button type="button" onClick={partager} title="Partager"
+            className="p-1.5 rounded-full text-gray-400 hover:text-[#4F8A3D] transition-colors duration-150">
+            <Share2 className="w-3.5 h-3.5" strokeWidth={1.8} />
+          </button>
+          <button
+            type="button"
+            onClick={gererClic}
+            disabled={dejaReagi}
+            title={dejaReagi ? 'Vous avez déjà encouragé ce témoignage' : 'Encourager'}
+            className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors duration-150 ${dejaReagi ? 'text-[#B3492F]' : 'text-gray-400 hover:text-[#B3492F]'}`}
+          >
+            <Heart className={`w-4 h-4 ${anime ? 'coeur-anime' : ''}`} fill={dejaReagi ? 'currentColor' : 'none'} strokeWidth={1.8} />
+            <span className="font-semibold">{temoignage.nb_reactions}</span>
+          </button>
+        </div>
       </div>
     </div>
   )
