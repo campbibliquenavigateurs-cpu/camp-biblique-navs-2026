@@ -87,3 +87,12 @@ export function CarteKPI({ label, valeur, accent }: { label: string; valeur: str
 export function paginer<T>(liste: T[], page: number, parPage: number): T[] {
   return liste.slice((page - 1) * parPage, page * parPage)
 }
+
+export function ToggleVisible({ visible, onBasculer }: { visible: boolean; onBasculer: () => void }) {
+  return (
+    <button type="button" onClick={onBasculer}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 shrink-0 ${visible ? 'bg-[#4F8A3D]' : 'bg-gray-300'}`}>
+      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${visible ? 'translate-x-5' : 'translate-x-1'}`} />
+    </button>
+  )
+}

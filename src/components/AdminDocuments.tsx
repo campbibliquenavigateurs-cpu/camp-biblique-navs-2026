@@ -3,7 +3,7 @@ import { Paperclip } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import { formatTailleOctets } from '../utils/format'
-import { Modale, BoutonSupprimer, BoutonModifier, Pagination, paginer } from './ComposantsTableau'
+import { Modale, BoutonSupprimer, BoutonModifier, Pagination, paginer, ToggleVisible } from './ComposantsTableau'
 import { SkeletonTableau } from './Skeleton'
 
 // ============================================================
@@ -182,15 +182,6 @@ function ModaleDocument({ donnee, dossiers, onFermer, onSauvegarde }: {
         </button>
       </div>
     </Modale>
-  )
-}
-
-function ToggleVisible({ visible, onBasculer }: { visible: boolean; onBasculer: () => void }) {
-  return (
-    <button type="button" onClick={onBasculer}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 shrink-0 ${visible ? 'bg-[#4F8A3D]' : 'bg-gray-300'}`}>
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${visible ? 'translate-x-5' : 'translate-x-1'}`} />
-    </button>
   )
 }
 
