@@ -222,18 +222,25 @@ export default function Home() {
 
       {/* Participation — cartes tarifs épurées */}
       <section className="px-4 py-10 bg-[#F4F9F0]">
+        <div className="text-center mb-4">
+          <Link to="/preparation" className="text-xs text-[#5B7A56] hover:text-[#1B3B1A] hover:underline">
+            Comment se préparer pour le camp →
+          </Link>
+        </div>
         <p className="text-center text-xs font-bold uppercase tracking-widest text-[#5B7A56] mb-5">
           Participation
         </p>
         <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
           <div className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5 text-center">
-            <p className="text-xs text-gray-400 mb-1.5">Enfant / Ado</p>
-            <p className="text-2xl font-bold text-[#1B3B1A]">25 000</p>
+            <p className="text-sm font-semibold text-[#1B3B1A]">Enfant / Ado</p>
+            <p className="text-xs text-gray-400 mb-2">0 à 15 ans</p>
+            <p className="text-2xl font-bold text-[#D9A441]">25 000</p>
             <p className="text-xs text-gray-400 mt-0.5">F CFA</p>
           </div>
           <div className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5 text-center">
-            <p className="text-xs text-gray-400 mb-1.5">Jeune / Adulte</p>
-            <p className="text-2xl font-bold text-[#1B3B1A]">30 000</p>
+            <p className="text-sm font-semibold text-[#1B3B1A]">Jeune / Adulte</p>
+            <p className="text-xs text-gray-400 mb-2">16 ans et plus</p>
+            <p className="text-2xl font-bold text-[#D9A441]">30 000</p>
             <p className="text-xs text-gray-400 mt-0.5">F CFA</p>
           </div>
         </div>
