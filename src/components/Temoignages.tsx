@@ -50,6 +50,9 @@ function CarteTemoignage({ temoignage, nomCommission, dejaReagi, onReagir, vedet
 }) {
   const toast = useToast()
   const [anime, setAnime] = useState(false)
+  const [depliee, setDepliee] = useState(false)
+  const LONGUEUR_APERCU = 280
+  const estLong = temoignage.contenu.length > LONGUEUR_APERCU
 
   function gererClic() {
     if (dejaReagi) return
@@ -84,7 +87,15 @@ function CarteTemoignage({ temoignage, nomCommission, dejaReagi, onReagir, vedet
           <Pin className="w-2.5 h-2.5" strokeWidth={2} /> À la une
         </span>
       )}
-      <p className="text-sm text-[#1B3B1A] leading-relaxed flex-1 mb-3 whitespace-pre-line">{temoignage.contenu}</p>
+      <p className={`text-sm text-[#1B3B1A] leading-relaxed flex-1 mb-1 whitespace-pre-line ${!depliee && estLong ? 'line-clamp-6' : ''}`}>
+        {temoignage.contenu}
+      </p>
+      {estLong && (
+        <button type="button" onClick={() => setDepliee(v => !v)} className="text-xs font-semibold text-[#4F8A3D] hover:underline mb-3 self-start">
+          {depliee ? 'Réduire' : 'Lire la suite'}
+        </button>
+      )}
+      {!estLong && <div className="mb-3" />}
       <div className="flex items-center justify-between text-xs text-gray-400">
         <span>
           {nomAffiche}
@@ -123,7 +134,8 @@ function FormulaireSoumission({ commissions, onFermer, onEnvoye }: {
   const [prenom, setPrenom] = useState('')
   const [commissionId, setCommissionId] = useState('')
   const [envoi, setEnvoi] = useState(false)
-  const valide = contenu.trim().length >= 10
+  const LONGUEUR_MAX = 500
+  const valide = contenu.trim().length >= 10 && contenu.length <= LONGUEUR_MAX
 
   async function soumettre() {
     if (!valide) return
@@ -152,9 +164,12 @@ function FormulaireSoumission({ commissions, onFermer, onEnvoye }: {
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-[#1B3B1A] mb-1">Votre témoignage</label>
-            <textarea value={contenu} onChange={e => setContenu(e.target.value)} rows={5}
+            <textarea value={contenu} onChange={e => setContenu(e.target.value)} rows={5} maxLength={LONGUEUR_MAX}
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F8A3D]"
               placeholder="Partagez ce que ce camp a représenté pour vous..." />
+            <p className={`text-xs mt-1 text-right ${contenu.length >= LONGUEUR_MAX ? 'text-[#B3492F]' : 'text-gray-400'}`}>
+              {contenu.length} / {LONGUEUR_MAX}
+            </p>
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">
@@ -197,6 +212,7 @@ export default function Temoignages() {
   const [chargement, setChargement] = useState(true)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
   const [reactionsLocales, setReactionsLocales] = useState<string[]>([])
+  const [nombreAffiche, setNombreAffiche] = useState(12)
 
   useEffect(() => {
     setReactionsLocales(chargerReactionsLocales())
@@ -228,6 +244,8 @@ export default function Temoignages() {
 
   const epingles = temoignages.filter(t => t.epingle)
   const reste = temoignages.filter(t => !t.epingle)
+  const resteAffiche = reste.slice(0, nombreAffiche)
+  const resteRestant = reste.length - resteAffiche.length
 
   return (
     <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
@@ -250,16 +268,26 @@ export default function Temoignages() {
         ) : temoignages.length === 0 ? (
           <p className="text-center text-sm text-gray-400 py-8">Aucun témoignage publié pour le moment.</p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
-            {epingles.map(t => (
-              <CarteTemoignage key={t.id} temoignage={t} nomCommission={nomCommission}
-                dejaReagi={reactionsLocales.includes(t.id)} onReagir={reagir} vedette />
-            ))}
-            {reste.map(t => (
-              <CarteTemoignage key={t.id} temoignage={t} nomCommission={nomCommission}
-                dejaReagi={reactionsLocales.includes(t.id)} onReagir={reagir} />
-            ))}
-          </div>
+          <>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {epingles.map(t => (
+                <CarteTemoignage key={t.id} temoignage={t} nomCommission={nomCommission}
+                  dejaReagi={reactionsLocales.includes(t.id)} onReagir={reagir} vedette />
+              ))}
+              {resteAffiche.map(t => (
+                <CarteTemoignage key={t.id} temoignage={t} nomCommission={nomCommission}
+                  dejaReagi={reactionsLocales.includes(t.id)} onReagir={reagir} />
+              ))}
+            </div>
+            {resteRestant > 0 && (
+              <div className="text-center mt-6">
+                <button type="button" onClick={() => setNombreAffiche(n => n + 12)}
+                  className="px-5 py-2 rounded-lg text-sm font-semibold text-[#1B3B1A] border border-[#1B3B1A] hover:bg-white transition-colors duration-200">
+                  Voir plus de témoignages ({resteRestant} restant{resteRestant > 1 ? 's' : ''})
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
