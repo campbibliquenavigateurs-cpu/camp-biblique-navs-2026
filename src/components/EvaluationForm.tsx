@@ -196,6 +196,9 @@ export default function EvaluationForm() {
           <div className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-6">
             <label className="block text-sm font-medium text-[#1B3B1A] mb-1">Votre numéro de téléphone</label>
             <p className="text-xs text-gray-400 mb-3">Celui utilisé lors de votre inscription au camp.</p>
+            <p className="text-xs text-[#5B7A56] bg-[#F4F9F0] rounded-lg px-3 py-2 mb-3">
+              Vos réponses restent strictement anonymes. Ce numéro sert uniquement à vérifier votre inscription et à éviter qu'une même personne ne vote plusieurs fois.
+            </p>
             <input
               type="tel"
               value={telephoneSaisie}
