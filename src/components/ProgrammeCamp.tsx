@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ChevronDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { JOURS_CAMP, iconeDeCategorie } from './programmeConstantes'
+import { JOURS_CAMP, iconeDeCategorie, estEnCours, jourActifParDefaut } from './programmeConstantes'
 import { SkeletonTimelineProgramme } from './Skeleton'
 
 // ============================================================
@@ -24,13 +24,6 @@ interface Creneau {
 }
 interface OptionAtelier { id: string; programme_id: string; titre: string; orateur: string | null }
 interface JourInfo { jour: string; message_alerte: string | null }
-
-function estEnCours(jourStr: string, heureDebut: string, heureFin: string): boolean {
-  const maintenant = new Date()
-  const debut = new Date(`${jourStr}T${heureDebut}`)
-  const fin = new Date(`${jourStr}T${heureFin}`)
-  return maintenant >= debut && maintenant <= fin
-}
 
 function CarteAtelier({ creneau, options, enCours }: { creneau: Creneau; options: OptionAtelier[]; enCours: boolean }) {
   const [ouvert, setOuvert] = useState(false)
@@ -86,7 +79,7 @@ export default function ProgrammeCamp() {
   const [options, setOptions] = useState<OptionAtelier[]>([])
   const [joursInfo, setJoursInfo] = useState<JourInfo[]>([])
   const [chargement, setChargement] = useState(true)
-  const [jourActif, setJourActif] = useState(JOURS_CAMP[0].date)
+  const [jourActif, setJourActif] = useState(jourActifParDefaut())
   const [, setHorloge] = useState(Date.now())
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
-import { JOURS_CAMP, CATEGORIES_PROGRAMME } from './programmeConstantes'
+import { JOURS_CAMP, CATEGORIES_PROGRAMME, estEnCours } from './programmeConstantes'
 import { Modale, BoutonSupprimer, BoutonModifier, Pagination, paginer } from './ComposantsTableau'
 import { SkeletonTableau } from './Skeleton'
 import AccesRestreint from './AccesRestreint'
@@ -277,6 +277,66 @@ function ModaleMessageJour({ jour, messageActuel, onFermer, onSauvegarde }: {
   )
 }
 
+// ============================================================
+// Modale : dupliquer un créneau existant vers d'autres jours
+// ============================================================
+function ModaleDupliquer({ creneau, onFermer, onSauvegarde }: {
+  creneau: Creneau
+  onFermer: () => void
+  onSauvegarde: () => void
+}) {
+  const toast = useToast()
+  const [joursChoisis, setJoursChoisis] = useState<string[]>([])
+  const [envoi, setEnvoi] = useState(false)
+  const joursDisponibles = JOURS_CAMP.filter(j => j.date !== creneau.jour)
+
+  function basculerJour(date: string) {
+    setJoursChoisis(prev => prev.includes(date) ? prev.filter(j => j !== date) : [...prev, date])
+  }
+
+  async function soumettre() {
+    if (joursChoisis.length === 0) return
+    setEnvoi(true)
+    const { error } = await supabase.from('programme_camp').insert(
+      joursChoisis.map(jour => ({
+        jour,
+        heure_debut: creneau.heure_debut,
+        heure_fin: creneau.heure_fin,
+        categorie: creneau.categorie,
+        titre: creneau.titre,
+        orateur: creneau.orateur,
+        versets: creneau.versets,
+      }))
+    )
+    setEnvoi(false)
+    if (error) { toast.erreur('Erreur lors de la duplication.'); return }
+    toast.succes(`Créneau dupliqué sur ${joursChoisis.length} jour${joursChoisis.length > 1 ? 's' : ''} !`)
+    onSauvegarde()
+    onFermer()
+  }
+
+  return (
+    <Modale titre={`Dupliquer — ${creneau.titre}`} onFermer={onFermer}>
+      <div className="space-y-3">
+        <p className="text-sm text-gray-500">Choisis les journées vers lesquelles copier ce créneau ({libelleJour(creneau.jour)}, {creneau.heure_debut.slice(0, 5)}–{creneau.heure_fin.slice(0, 5)}).</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {joursDisponibles.map(j => (
+            <label key={j.date} className="flex items-center gap-1.5 text-sm text-[#1B3B1A] cursor-pointer">
+              <input type="checkbox" checked={joursChoisis.includes(j.date)} onChange={() => basculerJour(j.date)}
+                className="w-4 h-4 rounded border-gray-300 text-[#4F8A3D] focus:ring-[#4F8A3D]" />
+              {j.label}
+            </label>
+          ))}
+        </div>
+        <button type="button" onClick={soumettre} disabled={joursChoisis.length === 0 || envoi}
+          className={`w-full py-2.5 rounded-lg text-sm font-semibold text-white ${joursChoisis.length > 0 && !envoi ? 'bg-[#4F8A3D] hover:bg-[#3F7530]' : 'bg-gray-300 cursor-not-allowed'}`}>
+          {envoi ? 'Duplication...' : 'Dupliquer'}
+        </button>
+      </div>
+    </Modale>
+  )
+}
+
 export default function AdminProgramme() {
   const { statutAcces, verifierAcces } = useAccesRole(ROLES_ADMIN)
   const toast = useToast()
@@ -291,6 +351,7 @@ export default function AdminProgramme() {
   const [modaleCreneau, setModaleCreneau] = useState<Creneau | 'nouveau' | null>(null)
   const [modaleAteliers, setModaleAteliers] = useState<Creneau | null>(null)
   const [modaleMessageJour, setModaleMessageJour] = useState<string | null>(null)
+  const [modaleDupliquer, setModaleDupliquer] = useState<Creneau | null>(null)
 
   const charger = useCallback(async () => {
     setChargement(true)
@@ -388,10 +449,15 @@ export default function AdminProgramme() {
                   <SkeletonTableau lignes={6} colonnes={5} />
                 ) : creneauxFiltres.length === 0 ? (
                   <tr><td colSpan={5} className="px-4 py-5 text-center text-gray-400">Aucun créneau enregistré.</td></tr>
-                ) : paginer(creneauxFiltres, page, PAR_PAGE).map(c => (
-                  <tr key={c.id} className="text-[#1B3B1A]">
+                ) : paginer(creneauxFiltres, page, PAR_PAGE).map(c => {
+                  const enCours = estEnCours(c.jour, c.heure_debut, c.heure_fin)
+                  return (
+                  <tr key={c.id} className={enCours ? 'bg-[#D9A441]/10' : 'text-[#1B3B1A]'}>
                     <td className="px-4 py-2.5 text-gray-500">{libelleJour(c.jour)}</td>
-                    <td className="px-4 py-2.5">{c.heure_debut.slice(0, 5)} – {c.heure_fin.slice(0, 5)}</td>
+                    <td className="px-4 py-2.5">
+                      {c.heure_debut.slice(0, 5)} – {c.heure_fin.slice(0, 5)}
+                      {enCours && <span className="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-[#D9A441] text-white">En cours</span>}
+                    </td>
                     <td className="px-4 py-2.5 text-gray-500">{c.categorie}</td>
                     <td className="px-4 py-2.5 font-medium">{c.titre}</td>
                     <td className="px-4 py-2.5">
@@ -401,12 +467,16 @@ export default function AdminProgramme() {
                             Ateliers
                           </button>
                         )}
+                        <button type="button" onClick={() => setModaleDupliquer(c)} className="text-xs font-semibold text-[#5B7A56] hover:text-[#1B3B1A] whitespace-nowrap">
+                          Dupliquer
+                        </button>
                         <BoutonModifier onClick={() => setModaleCreneau(c)} />
                         <BoutonSupprimer id={c.id} enConfirmation={confirmationId} onDemanderConfirmation={setConfirmationId} onConfirmer={() => supprimer(c.id)} />
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -432,6 +502,9 @@ export default function AdminProgramme() {
           onFermer={() => setModaleMessageJour(null)}
           onSauvegarde={charger}
         />
+      )}
+      {modaleDupliquer && (
+        <ModaleDupliquer creneau={modaleDupliquer} onFermer={() => setModaleDupliquer(null)} onSauvegarde={charger} />
       )}
     </div>
   )
