@@ -53,7 +53,8 @@ function ModaleChant({ donnee, onFermer, onSauvegarde }: {
     let tailleAudio = donnee?.taille_audio_octets ?? null
 
     if (fichier) {
-      const chemin = `${crypto.randomUUID()}-${fichier.name}`
+      const extension = fichier.name.split('.').pop()?.toLowerCase() || 'mp3'
+      const chemin = `${crypto.randomUUID()}.${extension}`
       const { error: erreurUpload } = await supabase.storage.from('chants_audio').upload(chemin, fichier)
       if (erreurUpload) {
         setEnvoi(false)
@@ -111,11 +112,11 @@ function ModaleChant({ donnee, onFermer, onSauvegarde }: {
         </div>
         <div>
           <label className="block text-sm font-medium text-[#1B3B1A] mb-1">
-            Fichier audio (.mp3) {donnee && <span className="text-gray-400 font-normal">(laisser vide pour ne pas remplacer)</span>}
+            Fichier audio (.mp3, .m4a, .wav...) {donnee && <span className="text-gray-400 font-normal">(laisser vide pour ne pas remplacer)</span>}
           </label>
           <input
             type="file"
-            accept="audio/mpeg,.mp3"
+            accept="audio/*"
             onChange={e => setFichier(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#4F8A3D] file:text-white hover:file:bg-[#3F7530] file:cursor-pointer cursor-pointer"
           />

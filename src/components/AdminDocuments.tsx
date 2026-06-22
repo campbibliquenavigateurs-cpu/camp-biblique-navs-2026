@@ -104,7 +104,8 @@ function ModaleDocument({ donnee, dossiers, onFermer, onSauvegarde }: {
     let tailleOctets = donnee?.taille_octets ?? null
 
     if (fichier) {
-      const chemin = `${crypto.randomUUID()}-${fichier.name}`
+      const extension = fichier.name.split('.').pop()?.toLowerCase() || 'bin'
+      const chemin = `${crypto.randomUUID()}.${extension}`
       const { error: erreurUpload } = await supabase.storage.from('documents').upload(chemin, fichier)
       if (erreurUpload) {
         setEnvoi(false)
