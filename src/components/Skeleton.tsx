@@ -77,18 +77,24 @@ export function SkeletonTemoignage() {
 
 export function SkeletonLecteurAudio() {
   return (
-    <div className="animate-pulse bg-white rounded-2xl shadow-sm">
-      <div className="p-5 border-b border-[#E7F2DE] flex items-center gap-3">
-        <div className="w-11 h-11 rounded-full bg-[#E7F2DE] shrink-0" />
-        <div className="flex-1 h-1.5 rounded-full bg-[#E7F2DE]" />
-        <div className="w-16 h-1.5 rounded-full bg-[#E7F2DE] shrink-0" />
+    <div className="animate-pulse min-h-screen bg-[#F4F9F0]">
+      <div className="fixed top-4 inset-x-4 z-20 flex items-center justify-between max-w-lg mx-auto">
+        <div className="h-8 w-20 rounded-full bg-[#E7F2DE]" />
+        <div className="h-8 w-8 rounded-full bg-[#E7F2DE]" />
       </div>
-      <div className="p-5 space-y-2.5">
-        <div className="h-4 w-1/2 rounded bg-[#E7F2DE] mb-3" />
-        <div className="h-3 w-full rounded bg-[#E7F2DE]" />
-        <div className="h-3 w-5/6 rounded bg-[#E7F2DE]" />
-        <div className="h-3 w-full rounded bg-[#E7F2DE]" />
-        <div className="h-3 w-2/3 rounded bg-[#E7F2DE]" />
+      <div className="flex flex-col items-center justify-center min-h-screen px-6 pt-24 pb-44 max-w-lg mx-auto space-y-3">
+        <div className="h-3 w-1/3 rounded bg-[#E7F2DE] mb-3" />
+        <div className="h-4 w-full rounded bg-[#E7F2DE]" />
+        <div className="h-4 w-5/6 rounded bg-[#E7F2DE]" />
+        <div className="h-4 w-full rounded bg-[#E7F2DE]" />
+        <div className="h-4 w-2/3 rounded bg-[#E7F2DE]" />
+      </div>
+      <div className="fixed inset-x-4 bottom-20 sm:bottom-6 z-30 max-w-lg mx-auto">
+        <div className="rounded-2xl bg-white px-5 py-4 space-y-3">
+          <div className="h-3 w-1/2 rounded bg-[#E7F2DE]" />
+          <div className="flex justify-center"><div className="w-14 h-14 rounded-full bg-[#E7F2DE]" /></div>
+          <div className="h-1.5 w-full rounded-full bg-[#E7F2DE]" />
+        </div>
       </div>
     </div>
   )

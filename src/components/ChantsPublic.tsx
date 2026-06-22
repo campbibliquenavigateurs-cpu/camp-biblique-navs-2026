@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { Search, ChevronLeft, Music } from 'lucide-react'
+import { Search, Music } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { SkeletonLecteurAudio } from './Skeleton'
 
@@ -54,23 +54,14 @@ export default function ChantsPublic() {
 
   if (chantOuvert) {
     return (
-      <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
-        <div className="max-w-xl mx-auto">
-          <button type="button" onClick={() => setChantOuvert(null)}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5B7A56] hover:text-[#1B3B1A] mb-4">
-            <ChevronLeft className="w-4 h-4" strokeWidth={2} />
-            Retour au carnet
-          </button>
-
-          <Suspense fallback={<SkeletonLecteurAudio />}>
-            <LecteurChant
-              urlAudio={chantOuvert.url_audio}
-              paroles={chantOuvert.paroles}
-              titre={chantOuvert.numero ? `${chantOuvert.numero}. ${chantOuvert.titre}` : chantOuvert.titre}
-            />
-          </Suspense>
-        </div>
-      </div>
+      <Suspense fallback={<SkeletonLecteurAudio />}>
+        <LecteurChant
+          urlAudio={chantOuvert.url_audio}
+          paroles={chantOuvert.paroles}
+          titre={chantOuvert.numero ? `${chantOuvert.numero}. ${chantOuvert.titre}` : chantOuvert.titre}
+          onRetour={() => setChantOuvert(null)}
+        />
+      </Suspense>
     )
   }
 
