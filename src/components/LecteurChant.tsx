@@ -1,16 +1,52 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Play, Pause, Volume2, VolumeX, Moon, Sun, ChevronLeft } from 'lucide-react'
 import { formatDureeAudio } from '../utils/format'
 
 // ============================================================
-// Camp Biblique-Navs 2026 — Écran de lecture immersif (Phase 22b)
-// Refonte complète : plein écran, paroles centrées en grand,
-// mini-lecteur flottant au-dessus de la barre de navigation.
-// Pas de dégradé (préférence déjà exprimée sur l'accueil) : fond
-// uni légèrement teinté pour la profondeur.
+// Camp Biblique-Navs 2026 — Écran de lecture immersif (Phase 22c)
+// Défilement indépendant des paroles avec fondu en haut/bas et
+// focus lumineux par paragraphe, lecteur affiné, égaliseur animé.
+// Toutes les animations utilisent uniquement transform/opacity
+// (accélérées GPU), aucune ne touche layout/scroll.
 // ============================================================
 
 const CLE_MODE_NUIT = 'camp-navs-2026-mode-nuit-chants'
+
+const STYLES = `
+  @keyframes lecteurEntree { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .lecteur-entree { animation: lecteurEntree 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  @keyframes parolesEntree { from { opacity: 0; } to { opacity: 1; } }
+  .paroles-entree { animation: parolesEntree 0.5s ease-out both; }
+
+  .paroles-scroll {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%);
+  }
+
+  .barre-progression { -webkit-appearance: none; appearance: none; height: 3px; border-radius: 9999px; outline: none; }
+  .barre-progression::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: #4F8A3D; cursor: pointer; }
+  .barre-progression::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: #4F8A3D; border: none; cursor: pointer; }
+
+  @keyframes egal1 { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+  @keyframes egal2 { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.35); } }
+  @keyframes egal3 { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(0.9); } }
+  .egal-barre { transform-origin: bottom; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+  .egal-1 { animation-name: egal1; animation-duration: 0.55s; }
+  .egal-2 { animation-name: egal2; animation-duration: 0.7s; }
+  .egal-3 { animation-name: egal3; animation-duration: 0.62s; }
+  .egal-barre.en-pause { animation-play-state: paused; }
+`
+
+function Egaliseur({ actif }: { actif: boolean }) {
+  return (
+    <span className="inline-flex items-end gap-[2px] h-3 w-3.5">
+      <span className={`egal-barre egal-1 ${!actif ? 'en-pause' : ''} w-[3px] h-full bg-white rounded-full`} />
+      <span className={`egal-barre egal-2 ${!actif ? 'en-pause' : ''} w-[3px] h-full bg-white rounded-full`} />
+      <span className={`egal-barre egal-3 ${!actif ? 'en-pause' : ''} w-[3px] h-full bg-white rounded-full`} />
+    </span>
+  )
+}
 
 export default function LecteurChant({ urlAudio, paroles, titre, onRetour }: {
   urlAudio: string | null
@@ -19,17 +55,46 @@ export default function LecteurChant({ urlAudio, paroles, titre, onRetour }: {
   onRetour: () => void
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const conteneurParolesRef = useRef<HTMLDivElement | null>(null)
+  const refsParagraphes = useRef<(HTMLParagraphElement | null)[]>([])
+
   const [enLecture, setEnLecture] = useState(false)
   const [position, setPosition] = useState(0)
   const [duree, setDuree] = useState(0)
   const [muet, setMuet] = useState(false)
   const [modeNuit, setModeNuit] = useState(false)
+  const [indexActif, setIndexActif] = useState(0)
+
+  const paragraphes = useMemo(
+    () => (paroles || '').split(/\n\s*\n/).map(p => p.trim()).filter(p => p !== ''),
+    [paroles]
+  )
 
   useEffect(() => {
     try {
       setModeNuit(localStorage.getItem(CLE_MODE_NUIT) === '1')
     } catch { /* sans incidence */ }
   }, [])
+
+  // Focus lumineux : le paragraphe le plus proche du centre de la
+  // zone de défilement passe à pleine opacité, les autres s'atténuent.
+  useEffect(() => {
+    const racine = conteneurParolesRef.current
+    if (!racine || paragraphes.length === 0) return
+    const observateur = new IntersectionObserver(
+      entrees => {
+        entrees.forEach(entree => {
+          if (entree.isIntersecting) {
+            const idx = refsParagraphes.current.findIndex(el => el === entree.target)
+            if (idx !== -1) setIndexActif(idx)
+          }
+        })
+      },
+      { root: racine, rootMargin: '-45% 0px -45% 0px', threshold: 0 }
+    )
+    refsParagraphes.current.forEach(el => el && observateur.observe(el))
+    return () => observateur.disconnect()
+  }, [paragraphes])
 
   function basculerModeNuit() {
     setModeNuit(v => {
@@ -60,7 +125,9 @@ export default function LecteurChant({ urlAudio, paroles, titre, onRetour }: {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${modeNuit ? 'bg-[#142B14]' : 'bg-[#F4F9F0]'}`}>
+    <div className={`min-h-screen h-screen overflow-hidden transition-colors duration-300 ${modeNuit ? 'bg-[#142B14]' : 'bg-[#F4F9F0]'}`}>
+      <style>{STYLES}</style>
+
       {/* Bouton retour — discret, en haut à gauche */}
       <div className="fixed top-4 inset-x-4 z-20 flex items-center justify-between max-w-lg mx-auto">
         <button
@@ -85,20 +152,37 @@ export default function LecteurChant({ urlAudio, paroles, titre, onRetour }: {
         </button>
       </div>
 
-      {/* Paroles — centrées, grandes, lisibles */}
-      <div className="flex flex-col items-center justify-center min-h-screen px-6 pt-24 pb-44 max-w-lg mx-auto text-center">
-        <p className={`text-xs font-bold uppercase tracking-widest mb-4 ${modeNuit ? 'text-white/40' : 'text-[#5B7A56]'}`}>
+      {/* Paroles — défilement indépendant, fondu haut/bas, focus lumineux */}
+      <div
+        ref={conteneurParolesRef}
+        className="paroles-entree paroles-scroll h-screen overflow-y-auto px-6 pt-24 pb-48 max-w-lg mx-auto"
+      >
+        <p className={`text-xs font-bold uppercase tracking-widest text-center mb-6 ${modeNuit ? 'text-white/40' : 'text-[#5B7A56]'}`}>
           {titre}
         </p>
-        <p className={`text-xl sm:text-2xl leading-relaxed whitespace-pre-line ${modeNuit ? 'text-white' : 'text-[#1B3B1A]'}`}>
-          {paroles || 'Paroles non disponibles pour ce chant.'}
-        </p>
+        <div className="space-y-8">
+          {paragraphes.length === 0 ? (
+            <p className={`text-center text-lg ${modeNuit ? 'text-white/70' : 'text-[#1B3B1A]/70'}`}>
+              Paroles non disponibles pour ce chant.
+            </p>
+          ) : paragraphes.map((p, i) => (
+            <p
+              key={i}
+              ref={el => { refsParagraphes.current[i] = el }}
+              className={`text-center text-xl sm:text-2xl leading-relaxed whitespace-pre-line transition-opacity duration-500 ${
+                modeNuit ? 'text-white' : 'text-[#1B3B1A]'
+              } ${i === indexActif ? 'opacity-100' : 'opacity-40'}`}
+            >
+              {p}
+            </p>
+          ))}
+        </div>
       </div>
 
       {/* Mini-lecteur flottant — au-dessus de la barre de navigation */}
       {urlAudio && (
-        <div className="fixed inset-x-4 bottom-20 sm:bottom-6 z-30 max-w-lg mx-auto">
-          <div className={`rounded-2xl shadow-xl px-5 py-4 backdrop-blur-md transition-colors duration-300 ${modeNuit ? 'bg-[#1B3B1A]/95' : 'bg-white/95'}`}>
+        <div className="lecteur-entree fixed inset-x-4 bottom-20 sm:bottom-6 z-30 max-w-lg mx-auto">
+          <div className={`rounded-3xl shadow-xl px-6 py-5 transition-colors duration-300 ${modeNuit ? 'bg-[#1B3B1A]' : 'bg-white'}`}>
             <audio
               ref={audioRef}
               src={urlAudio}
@@ -110,15 +194,18 @@ export default function LecteurChant({ urlAudio, paroles, titre, onRetour }: {
               onEnded={() => setEnLecture(false)}
             />
 
-            <div className="flex items-center justify-between mb-3">
-              <span className={`text-xs font-semibold truncate ${modeNuit ? 'text-white/70' : 'text-[#1B3B1A]'}`}>{titre}</span>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 min-w-0">
+                {enLecture && <Egaliseur actif={enLecture} />}
+                <span className={`text-xs font-semibold truncate ${modeNuit ? 'text-white/70' : 'text-[#1B3B1A]'}`}>{titre}</span>
+              </div>
               <button type="button" onClick={basculerMuet} title="Couper le son"
                 className={`shrink-0 ml-2 ${modeNuit ? 'text-white/40 hover:text-white/70' : 'text-gray-300 hover:text-gray-500'}`}>
                 {muet ? <VolumeX className="w-3.5 h-3.5" strokeWidth={1.8} /> : <Volume2 className="w-3.5 h-3.5" strokeWidth={1.8} />}
               </button>
             </div>
 
-            <div className="flex justify-center mb-3">
+            <div className="flex justify-center mb-4">
               <button
                 type="button"
                 onClick={basculerLecture}
@@ -137,9 +224,10 @@ export default function LecteurChant({ urlAudio, paroles, titre, onRetour }: {
               step={0.1}
               value={position}
               onChange={e => deplacerPosition(Number(e.target.value))}
-              className="w-full h-1.5 rounded-full accent-[#4F8A3D] cursor-pointer"
+              className="barre-progression w-full cursor-pointer"
+              style={{ background: modeNuit ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }}
             />
-            <div className={`flex justify-between text-[11px] mt-1.5 ${modeNuit ? 'text-white/50' : 'text-gray-400'}`}>
+            <div className={`flex justify-between text-[11px] mt-2 ${modeNuit ? 'text-white/50' : 'text-gray-400'}`}>
               <span>{formatDureeAudio(position)}</span>
               <span>{formatDureeAudio(duree)}</span>
             </div>
