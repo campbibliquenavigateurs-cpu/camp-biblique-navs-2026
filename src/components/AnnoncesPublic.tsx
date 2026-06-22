@@ -1,252 +1,188 @@
-import { useEffect, useState } from 'react'
-import { AlertTriangle, Bell, Info, type LucideIcon } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Circle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { CATEGORIES_ANNONCE, iconeDeCategorieAnnonce } from './annoncesConstantes'
 import { SkeletonCarteAnnonce } from './Skeleton'
 
 // ============================================================
-// Camp Biblique-Navs 2026 — Annonces & Flash Infos (édition Premium v2)
-// Plus de bordure colorée : teinte de fond dégradée à la place.
-// Regroupement par période, mise en avant de l'annonce urgente la
-// plus récente, icônes de priorité, hiérarchie typographique renforcée.
+// Camp Biblique-Navs 2026 — Annonces & Notifications (Phase 24)
+// Centre de communication synchronisé en temps réel (Supabase
+// Realtime — première utilisation de ce mécanisme dans le projet).
+// Bandeau d'urgence persistant, flux filtrable par catégorie,
+// suivi lu/non-lu mémorisé sur l'appareil. Aucun emoji : uniquement
+// des icônes Lucide.
 // ============================================================
 
-const STYLES = `
-  @keyframes annonceEntree {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .annonce-carte {
-    opacity: 0;
-    animation: annonceEntree 0.45s ease-out forwards;
-  }
-  .annonce-pliable {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 300ms ease;
-    overflow: hidden;
-  }
-  .annonce-pliable.ouverte {
-    grid-template-rows: 1fr;
-  }
-  .annonce-pliable > div {
-    min-height: 0;
-  }
-`
+const CLE_LUES = 'camp-navs-2026-annonces-lues'
 
-type Priorite = 'high' | 'medium' | 'low'
-
+interface Commission { id: string; nom: string }
 interface Annonce {
   id: string
   titre: string
   contenu: string
-  priorite: Priorite
+  priorite: 'low' | 'medium' | 'high'
+  categorie: string
+  commission_id: string | null
+  date_expiration: string | null
   date_publication: string
 }
 
-const POIDS_PRIORITE: Record<Priorite, number> = { high: 0, medium: 1, low: 2 }
-
-interface StylePriorite {
-  label: string
-  Icon: LucideIcon
-  texte: string
-  fondBadge: string
-  degrade: string
+function nonExpiree(a: Annonce): boolean {
+  if (!a.date_expiration) return true
+  return new Date(a.date_expiration) > new Date()
 }
 
-function stylePriorite(priorite: Priorite): StylePriorite {
-  if (priorite === 'high') {
-    return { label: 'Urgent', Icon: AlertTriangle, texte: 'text-[#B3492F]', fondBadge: 'bg-[#B3492F]/10', degrade: 'bg-gradient-to-r from-[#B3492F]/[0.07] via-white to-white' }
+function chargerAnnoncesLues(): string[] {
+  try {
+    const brut = localStorage.getItem(CLE_LUES)
+    return brut ? JSON.parse(brut) : []
+  } catch {
+    return []
   }
-  if (priorite === 'medium') {
-    return { label: 'Rappel', Icon: Bell, texte: 'text-[#8A6A23]', fondBadge: 'bg-[#D9A441]/15', degrade: 'bg-gradient-to-r from-[#D9A441]/[0.09] via-white to-white' }
-  }
-  return { label: 'Info', Icon: Info, texte: 'text-[#4F8A3D]', fondBadge: 'bg-[#E7F2DE]', degrade: 'bg-gradient-to-r from-[#9CC18F]/[0.10] via-white to-white' }
 }
 
-function tempsRelatif(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime()
-  const minutes = Math.floor(diffMs / 60000)
-  if (minutes < 1) return "à l'instant"
-  if (minutes < 60) return `Il y a ${minutes} min`
-  const heures = Math.floor(minutes / 60)
-  if (heures < 24) return `Il y a ${heures} h`
-  const jours = Math.floor(heures / 24)
-  if (jours < 7) return `Il y a ${jours} j`
-  return new Date(dateStr).toLocaleDateString('fr-FR')
-}
-
-// Regroupe les annonces (déjà triées) en 3 paniers temporels, pour une
-// lecture façon fil d'actualité plutôt qu'une liste plate uniforme.
-function regrouperParPeriode(annonces: Annonce[]) {
-  const maintenant = new Date()
-  const aujourdHui: Annonce[] = []
-  const cetteSemaine: Annonce[] = []
-  const plusAncien: Annonce[] = []
-  annonces.forEach(a => {
-    const date = new Date(a.date_publication)
-    const diffJours = (maintenant.getTime() - date.getTime()) / 86400000
-    if (date.toDateString() === maintenant.toDateString()) aujourdHui.push(a)
-    else if (diffJours < 7) cetteSemaine.push(a)
-    else plusAncien.push(a)
-  })
-  return { aujourdHui, cetteSemaine, plusAncien }
-}
-
-function ChevronBas({ ouverte }: { ouverte: boolean }) {
-  return (
-    <svg
-      className={`w-3.5 h-3.5 transition-transform duration-200 ${ouverte ? 'rotate-180' : ''}`}
-      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-    </svg>
-  )
-}
-
-function CarteAnnonce({ annonce, index, vedette = false }: { annonce: Annonce; index: number; vedette?: boolean }) {
-  const [ouverte, setOuverte] = useState(false)
-  const style = stylePriorite(annonce.priorite)
+function CarteAnnonce({ annonce, nomCommission, lue, onLire }: {
+  annonce: Annonce
+  nomCommission: (id: string | null) => string | null
+  lue: boolean
+  onLire: (id: string) => void
+}) {
+  const Icone = iconeDeCategorieAnnonce(annonce.categorie)
+  const commission = nomCommission(annonce.commission_id)
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => setOuverte(v => !v)}
-      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setOuverte(v => !v)}
-      className={`annonce-carte relative rounded-xl shadow-sm cursor-pointer select-none overflow-hidden
-        transition-all duration-200 hover:scale-[1.015] hover:shadow-md active:scale-[1.015]
-        ${style.degrade} ${vedette ? 'p-6 ring-1 ring-[#B3492F]/20' : 'p-5'}`}
-      style={{ animationDelay: `${index * 50}ms` }}
+    <button
+      type="button"
+      onClick={() => !lue && onLire(annonce.id)}
+      className="w-full text-left bg-white rounded-xl shadow-sm p-4 flex items-start gap-3 transition-shadow duration-200 hover:shadow-md"
     >
-      {vedette && <div className="absolute top-0 inset-x-0 h-1 bg-[#B3492F]" />}
-
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${style.fondBadge} ${style.texte}`}>
-          <style.Icon className="w-3 h-3" strokeWidth={2} />
-          {style.label}
-        </span>
-        <span className="text-[11px] text-gray-400 tracking-wide shrink-0">{tempsRelatif(annonce.date_publication)}</span>
+      {!lue && <Circle className="w-2 h-2 fill-[#4F8A3D] text-[#4F8A3D] mt-1.5 shrink-0" />}
+      <div className="w-9 h-9 rounded-full bg-[#E7F2DE] flex items-center justify-center shrink-0">
+        <Icone className="w-4.5 h-4.5 text-[#4F8A3D]" strokeWidth={1.8} />
       </div>
-
-      <p className={`font-bold text-[#1B3B1A] ${vedette ? 'text-lg' : 'text-base'}`}>{annonce.titre}</p>
-
-      {!ouverte && (
-        <p className={`text-gray-600 mt-1 leading-relaxed line-clamp-2 ${vedette ? 'text-sm' : 'text-sm'}`}>{annonce.contenu}</p>
-      )}
-
-      <div className={`annonce-pliable ${ouverte ? 'ouverte' : ''}`}>
-        <div>
-          <p className="text-sm text-gray-600 mt-1 pt-0.5 leading-relaxed">{annonce.contenu}</p>
+      <div className="flex-1">
+        <div className="flex items-center justify-between gap-2 mb-0.5">
+          <span className="text-[11px] text-gray-400">
+            {new Date(annonce.date_publication).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            {commission && ` · ${commission}`}
+          </span>
         </div>
+        <p className="text-sm font-semibold text-[#1B3B1A]">{annonce.titre}</p>
+        <p className="text-sm text-gray-600 mt-0.5">{annonce.contenu}</p>
       </div>
-
-      <div className="flex items-center gap-1 mt-3 text-xs font-semibold text-[#4F8A3D]">
-        {ouverte ? 'Réduire' : 'Lire la suite'}
-        <ChevronBas ouverte={ouverte} />
-      </div>
-    </div>
-  )
-}
-
-function EnteteGroupe({ titre }: { titre: string }) {
-  return (
-    <p className="text-xs font-bold uppercase tracking-widest text-[#5B7A56] mt-6 mb-2.5 first:mt-0">
-      {titre}
-    </p>
-  )
-}
-
-function EtatVide() {
-  return (
-    <div className="annonce-carte text-center py-12">
-      <Info className="w-10 h-10 text-[#9CC18F] mx-auto mb-3" strokeWidth={1.5} />
-      <p className="text-sm text-gray-400">Aucune annonce pour le moment.</p>
-    </div>
+    </button>
   )
 }
 
 export default function AnnoncesPublic() {
   const [annonces, setAnnonces] = useState<Annonce[]>([])
+  const [commissions, setCommissions] = useState<Commission[]>([])
   const [chargement, setChargement] = useState(true)
+  const [categorieFiltre, setCategorieFiltre] = useState('')
+  const [luesLocalement, setLuesLocalement] = useState<string[]>([])
+
+  async function charger() {
+    const [resAnnonces, resCommissions] = await Promise.all([
+      supabase.from('annonces').select('*').order('date_publication', { ascending: false }),
+      supabase.from('commissions').select('id,nom'),
+    ])
+    if (resAnnonces.data) setAnnonces(resAnnonces.data as Annonce[])
+    if (resCommissions.data) setCommissions(resCommissions.data as Commission[])
+    setChargement(false)
+  }
 
   useEffect(() => {
-    async function charger() {
-      const { data, error } = await supabase
-        .from('annonces')
-        .select('*')
-        .order('date_publication', { ascending: false })
-
-      if (!error && data) {
-        const triees = [...(data as Annonce[])].sort(
-          (a, b) => POIDS_PRIORITE[a.priorite] - POIDS_PRIORITE[b.priorite]
-        )
-        setAnnonces(triees)
-      }
-      setChargement(false)
-    }
+    setLuesLocalement(chargerAnnoncesLues())
     charger()
+
+    // Connexion au flux Supabase Realtime : toute insertion, mise à
+    // jour ou suppression recharge instantanément la liste affichée,
+    // sans action de la part de la personne qui consulte la page.
+    const canal = supabase
+      .channel('annonces-public-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'annonces' }, () => {
+        charger()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(canal)
+    }
   }, [])
 
-  // La toute première annonce, si elle est "Urgent", est mise en avant
-  // au-dessus du fil, plutôt que noyée dans la liste comme les autres.
-  const vedette = annonces[0]?.priorite === 'high' ? annonces[0] : null
-  const reste = vedette ? annonces.filter(a => a.id !== vedette.id) : annonces
-  const { aujourdHui, cetteSemaine, plusAncien } = regrouperParPeriode(reste)
+  const nomCommission = useMemo(() => {
+    const carte = new Map(commissions.map(c => [c.id, c.nom]))
+    return (id: string | null) => (id ? carte.get(id) ?? null : null)
+  }, [commissions])
 
-  let compteur = 0
-  function prochainIndex() {
-    compteur += 1
-    return compteur
+  function marquerLue(id: string) {
+    setLuesLocalement(prev => {
+      const suivant = [...prev, id]
+      try { localStorage.setItem(CLE_LUES, JSON.stringify(suivant)) } catch { /* sans incidence */ }
+      return suivant
+    })
   }
+
+  const annoncesActives = useMemo(() => annonces.filter(nonExpiree), [annonces])
+  const urgentes = useMemo(() => annoncesActives.filter(a => a.priorite === 'high'), [annoncesActives])
+  const standards = useMemo(() => {
+    const sansUrgentes = annoncesActives.filter(a => a.priorite !== 'high')
+    if (categorieFiltre === '') return sansUrgentes
+    return sansUrgentes.filter(a => a.categorie === categorieFiltre)
+  }, [annoncesActives, categorieFiltre])
 
   return (
     <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
-      <style>{STYLES}</style>
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-[#1B3B1A] mb-6 text-center">Annonces &amp; Flash Infos</h1>
+        <h1 className="text-2xl font-bold text-[#1B3B1A] mb-6 text-center">Annonces &amp; Notifications</h1>
+
+        {/* Bandeau d'alerte critique — persistant tant qu'une annonce urgente est active */}
+        {urgentes.length > 0 && (
+          <div className="space-y-2 mb-5">
+            {urgentes.map(a => (
+              <div key={a.id} className="bg-[#B3492F] text-white rounded-xl p-4 flex items-start gap-3 shadow-md">
+                <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" strokeWidth={1.8} />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-white/80">Urgent</p>
+                  <p className="text-sm font-semibold">{a.titre}</p>
+                  <p className="text-sm text-white/90 mt-0.5">{a.contenu}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Filtres par catégorie */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button type="button" onClick={() => setCategorieFiltre('')}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors duration-200 ${categorieFiltre === '' ? 'bg-[#4F8A3D] text-white' : 'bg-white text-[#5B7A56] hover:bg-[#E7F2DE]'}`}>
+            Toutes
+          </button>
+          {CATEGORIES_ANNONCE.map(c => (
+            <button key={c.nom} type="button" onClick={() => setCategorieFiltre(c.nom)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors duration-200 ${categorieFiltre === c.nom ? 'bg-[#4F8A3D] text-white' : 'bg-white text-[#5B7A56] hover:bg-[#E7F2DE]'}`}>
+              {c.nom}
+            </button>
+          ))}
+        </div>
 
         {chargement ? (
           <div className="space-y-3">
-            <SkeletonCarteAnnonce />
-            <SkeletonCarteAnnonce />
-            <SkeletonCarteAnnonce />
+            <SkeletonCarteAnnonce /><SkeletonCarteAnnonce /><SkeletonCarteAnnonce />
           </div>
-        ) : annonces.length === 0 ? (
-          <EtatVide />
+        ) : standards.length === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-8">Aucune annonce pour le moment.</p>
         ) : (
-          <div>
-            {vedette && (
-              <div className="mb-5">
-                <CarteAnnonce annonce={vedette} index={prochainIndex()} vedette />
-              </div>
-            )}
-
-            {aujourdHui.length > 0 && (
-              <>
-                <EnteteGroupe titre="Aujourd'hui" />
-                <div className="space-y-3">
-                  {aujourdHui.map(a => <CarteAnnonce key={a.id} annonce={a} index={prochainIndex()} />)}
-                </div>
-              </>
-            )}
-
-            {cetteSemaine.length > 0 && (
-              <>
-                <EnteteGroupe titre="Cette semaine" />
-                <div className="space-y-3">
-                  {cetteSemaine.map(a => <CarteAnnonce key={a.id} annonce={a} index={prochainIndex()} />)}
-                </div>
-              </>
-            )}
-
-            {plusAncien.length > 0 && (
-              <>
-                <EnteteGroupe titre="Plus ancien" />
-                <div className="space-y-3">
-                  {plusAncien.map(a => <CarteAnnonce key={a.id} annonce={a} index={prochainIndex()} />)}
-                </div>
-              </>
-            )}
+          <div className="space-y-3">
+            {standards.map(a => (
+              <CarteAnnonce
+                key={a.id}
+                annonce={a}
+                nomCommission={nomCommission}
+                lue={luesLocalement.includes(a.id)}
+                onLire={marquerLue}
+              />
+            ))}
           </div>
         )}
       </div>
