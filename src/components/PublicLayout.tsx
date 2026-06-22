@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Home, Megaphone, Music2, FolderOpen, MessageSquareHeart, Star, MoreHorizontal, UserCheck, type LucideIcon } from 'lucide-react'
+import { Home, Megaphone, Music2, FolderOpen, MessageSquareHeart, Star, MoreHorizontal, UserCheck, CalendarDays, type LucideIcon } from 'lucide-react'
 import TransitionPage from './TransitionPage'
 
 interface Lien { label: string; path: string; Icon: LucideIcon }
@@ -13,6 +13,7 @@ const LIENS_PRINCIPAUX: Lien[] = [
 ]
 
 const LIENS_SECONDAIRES: Lien[] = [
+  { label: 'Programme', path: '/programme', Icon: CalendarDays },
   { label: 'Témoignages', path: '/temoignages', Icon: MessageSquareHeart },
   { label: 'Évaluation', path: '/evaluation', Icon: Star },
   { label: 'Mon inscription', path: '/mon-inscription', Icon: UserCheck },

@@ -25,6 +25,7 @@ const ChantsPublic = lazy(() => import('./components/ChantsPublic'))
 const DocumentsPublic = lazy(() => import('./components/DocumentsPublic'))
 const Temoignages = lazy(() => import('./components/Temoignages'))
 const EvaluationForm = lazy(() => import('./components/EvaluationForm'))
+const ProgrammeCamp = lazy(() => import('./components/ProgrammeCamp'))
 
 const TresorerieDashboard = lazy(() => import('./components/TresorerieDashboard'))
 const LogistiqueDashboard = lazy(() => import('./components/LogistiqueDashboard'))
@@ -35,6 +36,7 @@ const ContenusAdmin = lazy(() => import('./components/ContenusAdmin'))
 const EvaluationStats = lazy(() => import('./components/EvaluationStats'))
 const ParametresAdmin = lazy(() => import('./components/ParametresAdmin'))
 const ListeAttenteAdmin = lazy(() => import('./components/ListeAttenteAdmin'))
+const AdminProgramme = lazy(() => import('./components/AdminProgramme'))
 
 function ChargementRoute() {
   return (
@@ -61,6 +63,7 @@ function App() {
               <Route path="ressources" element={<DocumentsPublic />} />
               <Route path="temoignages" element={<Temoignages />} />
               <Route path="evaluation" element={<EvaluationForm />} />
+              <Route path="programme" element={<ProgrammeCamp />} />
             </Route>
             <Route path="comite" element={<ComiteLayout />}>
               <Route path="tresorerie" element={<TresorerieDashboard />} />
@@ -72,6 +75,7 @@ function App() {
               <Route path="evaluations" element={<EvaluationStats />} />
               <Route path="parametres" element={<ParametresAdmin />} />
               <Route path="liste-attente" element={<ListeAttenteAdmin />} />
+              <Route path="programme" element={<AdminProgramme />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

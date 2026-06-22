@@ -10,6 +10,7 @@ import {
   Settings,
   ClipboardList,
   Users,
+  CalendarDays,
   MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react'
@@ -44,6 +45,7 @@ const MENU_PAR_ROLE: Record<string, ItemMenu[]> = {
     { label: 'Modération', path: 'moderation' },
     { label: 'Évaluations', path: 'evaluations' },
     { label: 'Liste d\'attente', path: 'liste-attente' },
+    { label: 'Programme', path: 'programme' },
     { label: 'Paramètres', path: 'parametres' },
   ],
   comite_treso: [{ label: 'Trésorerie', path: 'tresorerie' }],
@@ -74,6 +76,7 @@ const ICONES_PAR_CHEMIN: Record<string, LucideIcon> = {
   contenus: FileText,
   evaluations: BarChart3,
   'liste-attente': Users,
+  programme: CalendarDays,
   parametres: Settings,
 }
 

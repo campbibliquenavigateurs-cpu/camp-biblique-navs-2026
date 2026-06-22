@@ -99,3 +99,19 @@ export function SkeletonLecteurAudio() {
     </div>
   )
 }
+
+export function SkeletonTimelineProgramme() {
+  return (
+    <div className="animate-pulse space-y-3">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#E7F2DE] shrink-0" />
+          <div className="flex-1 bg-white rounded-xl p-4">
+            <div className="h-3 w-1/4 rounded bg-[#E7F2DE] mb-2" />
+            <div className="h-4 w-2/3 rounded bg-[#E7F2DE]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
