@@ -279,7 +279,7 @@ function InscriptionFormOuvert({ places, toast }: { places: PlacesDispo; toast: 
 
   // ---- Écran de succès ----
   if(succes) return (
-    <div className="min-h-screen bg-[#1B3B1A] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#1B3B1A] flex items-center justify-center px-4" translate="no">
       <style>{STYLES}</style>
       <div className="success-pop bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-[#E7F2DE]">
         <div className="w-20 h-20 rounded-full bg-[#E7F2DE] flex items-center justify-center mx-auto mb-5">
@@ -309,7 +309,7 @@ function InscriptionFormOuvert({ places, toast }: { places: PlacesDispo; toast: 
 
   // ---- Écran doublon ----
   if(doublonDetecte) return (
-    <div className="min-h-screen bg-[#F4F9F0] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#F4F9F0] flex items-center justify-center px-4" translate="no">
       <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center border border-[#D9A441]">
         <div className="w-16 h-16 rounded-full bg-[#D9A441]/15 flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-[#8A6A23]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -345,7 +345,7 @@ function InscriptionFormOuvert({ places, toast }: { places: PlacesDispo; toast: 
   )
 
   if(recapVisible) return (
-    <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
+    <div className="min-h-screen bg-[#F4F9F0] py-8 px-4" translate="no">
       <div className="max-w-md mx-auto">
         <h2 className="text-xl font-bold text-[#1B3B1A] mb-1 text-center">Vérifiez vos informations</h2>
         <p className="text-sm text-gray-500 text-center mb-5">Relisez attentivement avant de confirmer définitivement</p>
@@ -398,7 +398,7 @@ function InscriptionFormOuvert({ places, toast }: { places: PlacesDispo; toast: 
   )
 
   return (
-    <div className="min-h-screen bg-[#F4F9F0] py-8 px-4">
+    <div className="min-h-screen bg-[#F4F9F0] py-8 px-4" translate="no">
       <style>{STYLES}</style>
       <div className="max-w-3xl mx-auto">
 
