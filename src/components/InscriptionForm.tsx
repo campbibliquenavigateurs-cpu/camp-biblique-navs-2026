@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
@@ -183,18 +183,49 @@ export default function InscriptionForm() {
   return <InscriptionFormOuvert places={places} toast={toast} />
 }
 
+const CLE_BROUILLON = 'camp-navs-2026-inscription-brouillon'
+
+interface Brouillon { form: InscriptionFormData; etape: number; pasAntecedents: boolean }
+
+function chargerBrouillon(): Brouillon | null {
+  try {
+    const brut = localStorage.getItem(CLE_BROUILLON)
+    return brut ? JSON.parse(brut) : null
+  } catch {
+    return null
+  }
+}
+
+function effacerBrouillon() {
+  try { localStorage.removeItem(CLE_BROUILLON) } catch { /* sans incidence */ }
+}
+
 function InscriptionFormOuvert({ places, toast }: { places: PlacesDispo; toast: ReturnType<typeof useToast> }) {
-  const [etape, setEtape] = useState(1)
+  const [etape, setEtape] = useState(() => chargerBrouillon()?.etape ?? 1)
   const [direction, setDirection] = useState<'avancer'|'reculer'>('avancer')
-  const [form, setForm] = useState<InscriptionFormData>(FORM_INITIAL)
+  const [form, setForm] = useState<InscriptionFormData>(() => chargerBrouillon()?.form ?? FORM_INITIAL)
   const [envoiEnCours, setEnvoiEnCours] = useState(false)
   const [succes, setSucces] = useState(false)
   const [doublonDetecte, setDoublonDetecte] = useState(false)
   const [consultationResultat, setConsultationResultat] = useState<ResultatConsultation|null>(null)
   const [consultationErreur, setConsultationErreur] = useState('')
-  const [pasAntecedents, setPasAntecedents] = useState(false)
+  const [pasAntecedents, setPasAntecedents] = useState(() => chargerBrouillon()?.pasAntecedents ?? false)
   const [recapVisible, setRecapVisible] = useState(false)
   const totalEtapes = 4
+
+  // Sauvegarde silencieuse de la progression à chaque changement, pour
+  // ne rien perdre en cas de coupure réseau ou de rechargement accidentel
+  // de la page pendant la saisie.
+  useEffect(() => {
+    try { localStorage.setItem(CLE_BROUILLON, JSON.stringify({ form, etape, pasAntecedents })) } catch { /* sans incidence */ }
+  }, [form, etape, pasAntecedents])
+
+  // Avertit la personne, une seule fois au chargement, qu'une saisie
+  // précédente a été retrouvée et restaurée.
+  useEffect(() => {
+    if (chargerBrouillon()) toast.succes('Votre saisie précédente a été restaurée.')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const Illustration = ILLUSTRATIONS[etape - 1]
 
@@ -265,7 +296,7 @@ function InscriptionFormOuvert({ places, toast }: { places: PlacesDispo; toast: 
     })
     setEnvoiEnCours(false)
     if(error){ toast.erreur('Une erreur est survenue. Merci de réessayer.'); console.error(error) }
-    else setSucces(true)
+    else { effacerBrouillon(); setSucces(true) }
   }
 
   async function consulterMonInscription() {

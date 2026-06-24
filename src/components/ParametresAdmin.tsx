@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Download } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useToast } from './Toast'
 import { useAccesRole } from '../hooks/useAccesRole'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
@@ -25,9 +27,11 @@ const LIBELLES: Record<string, string> = {
 
 export default function ParametresAdmin() {
   const { statutAcces, verifierAcces } = useAccesRole(ROLES_ADMIN)
+  const toast = useToast()
   const [parametres, setParametres] = useState<Parametre[]>([])
   const [valeurs, setValeurs] = useState<Record<string, string>>({})
   const [messageParCle, setMessageParCle] = useState<Record<string, string>>({})
+  const [exportEnCours, setExportEnCours] = useState(false)
   const [envoiCommutateur, setEnvoiCommutateur] = useState(false)
 
   async function charger() {
@@ -72,6 +76,34 @@ export default function ParametresAdmin() {
     charger()
   }
 
+  // Sauvegarde manuelle des données les plus critiques (inscriptions,
+  // paiements, trésorerie...), puisque le palier gratuit de Supabase ne
+  // réalise aucune sauvegarde automatique. À télécharger régulièrement
+  // et à conserver ailleurs (Google Drive, e-mail...).
+  async function telechargerSauvegarde() {
+    setExportEnCours(true)
+    const { utils, writeFileXLSX } = await import('xlsx')
+
+    const [inscriptions, versements, tresorerie, commissions, donsNature] = await Promise.all([
+      supabase.from('inscriptions').select('*'),
+      supabase.from('versements').select('*'),
+      supabase.from('tresorerie').select('*'),
+      supabase.from('commissions').select('*'),
+      supabase.from('dons_nature').select('*'),
+    ])
+
+    const classeur = utils.book_new()
+    utils.book_append_sheet(classeur, utils.json_to_sheet(inscriptions.data ?? []), 'Inscriptions')
+    utils.book_append_sheet(classeur, utils.json_to_sheet(versements.data ?? []), 'Versements')
+    utils.book_append_sheet(classeur, utils.json_to_sheet(tresorerie.data ?? []), 'Tresorerie')
+    utils.book_append_sheet(classeur, utils.json_to_sheet(commissions.data ?? []), 'Commissions')
+    utils.book_append_sheet(classeur, utils.json_to_sheet(donsNature.data ?? []), 'DonsNature')
+
+    setExportEnCours(false)
+    writeFileXLSX(classeur, `sauvegarde_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    toast.succes('Sauvegarde téléchargée — conservez-la dans un endroit sûr (Drive, e-mail...).')
+  }
+
   if (statutAcces === 'verification') {
     return (
       <div className="min-h-screen bg-[#F4F9F0] flex items-center justify-center">
@@ -88,6 +120,24 @@ export default function ParametresAdmin() {
     <div className="min-h-screen bg-[#F4F9F0] py-6 px-4">
       <div className="max-w-xl mx-auto space-y-4">
         <h1 className="text-2xl font-bold text-[#1B3B1A]">Paramètres du camp</h1>
+
+        <div className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
+          <p className="text-sm font-semibold text-[#1B3B1A] mb-1">Sauvegarde des données</p>
+          <p className="text-xs text-gray-400 mb-3">
+            Notre hébergement gratuit ne fait aucune sauvegarde automatique. Téléchargez régulièrement
+            cette sauvegarde des données les plus importantes (inscriptions, paiements, trésorerie) et
+            conservez-la ailleurs (Google Drive, e-mail...).
+          </p>
+          <button
+            type="button"
+            onClick={telechargerSauvegarde}
+            disabled={exportEnCours}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#4F8A3D] hover:bg-[#3F7530] disabled:bg-gray-300"
+          >
+            <Download className="w-4 h-4" strokeWidth={1.8} />
+            {exportEnCours ? 'Préparation...' : 'Télécharger une sauvegarde complète'}
+          </button>
+        </div>
 
         {parametres.length === 0 ? (
           <p className="text-sm text-gray-400">Chargement...</p>

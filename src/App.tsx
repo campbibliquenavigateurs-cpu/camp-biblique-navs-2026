@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
+import ErrorBoundary from './components/ErrorBoundary'
 import PublicLayout from './components/PublicLayout'
 import ComiteLayout from './components/ComiteLayout'
 import Home from './components/Home'
@@ -48,12 +49,13 @@ function ChargementRoute() {
 
 function App() {
   return (
-    <ToastProvider>
-      <MiseAJourDisponible />
-      <BrowserRouter>
-        <Suspense fallback={<ChargementRoute />}>
-          <Routes>
-            <Route element={<PublicLayout />}>
+    <ErrorBoundary>
+      <ToastProvider>
+        <MiseAJourDisponible />
+        <BrowserRouter>
+          <Suspense fallback={<ChargementRoute />}>
+            <Routes>
+              <Route element={<PublicLayout />}>
               <Route index element={<Home />} />
               <Route path="inscription" element={<InscriptionForm />} />
               <Route path="mon-inscription" element={<MonInscription />} />
@@ -82,6 +84,7 @@ function App() {
         </Suspense>
       </BrowserRouter>
     </ToastProvider>
+    </ErrorBoundary>
   )
 }
 
