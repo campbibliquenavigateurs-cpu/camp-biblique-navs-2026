@@ -618,6 +618,7 @@ export default function TresorerieDashboard() {
   const [commissions, setCommissions] = useState<Commission[]>([])
   const [lignesTresorerie, setLignesTresorerie] = useState<LigneTresorerie[]>([])
   const [donsNature, setDonsNature] = useState<DonNature[]>([])
+  const [fraisParCategorie, setFraisParCategorie] = useState<{ categorie: string; total: number }[]>([])
   const [chargement, setChargement] = useState(true)
 
   const [budgetGlobalSaisie, setBudgetGlobalSaisie] = useState('')
@@ -642,11 +643,12 @@ export default function TresorerieDashboard() {
 
   const charger = useCallback(async () => {
     setChargement(true)
-    const [resResume, resCommissions, resTresorerie, resDons] = await Promise.all([
+    const [resResume, resCommissions, resTresorerie, resDons, resFraisCategorie] = await Promise.all([
       supabase.rpc('get_resume_tresorerie'),
       supabase.from('vue_commissions_budget').select('*').order('nom'),
       supabase.from('tresorerie').select('*').order('date_mouvement', { ascending: false }),
       supabase.from('dons_nature').select('*').order('date_reception', { ascending: false }),
+      supabase.rpc('get_frais_participation_par_categorie'),
     ])
     if (resResume.data && resResume.data.length > 0) {
       const r = resResume.data[0] as Resume
@@ -656,6 +658,7 @@ export default function TresorerieDashboard() {
     if (resCommissions.data) setCommissions(resCommissions.data as Commission[])
     if (resTresorerie.data) setLignesTresorerie(resTresorerie.data as LigneTresorerie[])
     if (resDons.data) setDonsNature(resDons.data as DonNature[])
+    if (resFraisCategorie.data) setFraisParCategorie(resFraisCategorie.data as { categorie: string; total: number }[])
     setChargement(false)
   }, [budgetGlobalModifie])
 
@@ -697,6 +700,28 @@ export default function TresorerieDashboard() {
   )
   const depensesLignes = useMemo(() => lignesTresorerie.filter(l => l.type === 'sortie'), [lignesTresorerie])
 
+  // Détail des recettes réelles, ligne par ligne plutôt qu'un seul
+  // total combiné — chaque catégorie est sommée séparément à partir
+  // des lignes déjà chargées en mémoire.
+  const detailRecettes = useMemo(() => {
+    const sommeParCategorie = (categories: string[]) =>
+      mobilisationLignes.filter(l => categories.includes(l.categorie)).reduce((s, l) => s + l.montant, 0)
+    return {
+      dons: sommeParCategorie(['don_interne', 'don_externe']),
+      boutique: sommeParCategorie(['vente_gadgets']),
+      subvention: sommeParCategorie(['subvention']),
+      autresRevenus: sommeParCategorie(['autre']),
+    }
+  }, [mobilisationLignes])
+
+  const valeurDonsNature = useMemo(
+    () => donsNature.reduce((s, d) => s + (d.valeur_estimee ?? 0), 0),
+    [donsNature]
+  )
+
+  function fraisDe(categorie: string): number {
+    return fraisParCategorie.find(f => f.categorie === categorie)?.total ?? 0
+  }
 
   async function supprimer(table: 'commissions' | 'tresorerie' | 'dons_nature', id: string) {
     setConfirmationId(null)
@@ -725,12 +750,19 @@ export default function TresorerieDashboard() {
 
     const feuilleSynthese = utils.json_to_sheet([{
       'Budget Global Prévu (F CFA)': objectifBudget,
+      'Frais de participation (F CFA)': resume?.total_frais_participation ?? 0,
+      'dont Enfant/Ado (F CFA)': fraisDe('Enfant/Ado 15-'),
+      'dont Jeune/Adulte (F CFA)': fraisDe('Adulte/Ado 16+'),
+      'Dons (F CFA)': detailRecettes.dons,
+      'Boutique (F CFA)': detailRecettes.boutique,
+      'Subvention reçue (F CFA)': detailRecettes.subvention,
+      'Autres revenus (F CFA)': detailRecettes.autresRevenus,
       'Total entrées réelles (F CFA)': totalRessourcesReelles,
-      'dont Frais de participation (F CFA)': resume?.total_frais_participation ?? 0,
       'Total sorties (F CFA)': totalSorties,
       'Solde réel (F CFA)': soldeReel,
       "Taux d'atteinte réel (%)": Math.round(tauxAtteinteReel * 10) / 10,
       'Subvention estimée non reçue (F CFA)': subventionEstimee,
+      'Valeur des dons en nature — hors trésorerie (F CFA)': valeurDonsNature,
     }])
 
     const { data: inscriptions } = await supabase
@@ -793,11 +825,18 @@ export default function TresorerieDashboard() {
       head: [['Indicateur', 'Montant']],
       body: [
         ['Budget Global Prévu', formatFCFA(objectifBudget)],
+        ['Frais de participation', formatFCFA(resume?.total_frais_participation ?? 0)],
+        ['  dont Enfant/Ado', formatFCFA(fraisDe('Enfant/Ado 15-'))],
+        ['  dont Jeune/Adulte', formatFCFA(fraisDe('Adulte/Ado 16+'))],
+        ['Dons', formatFCFA(detailRecettes.dons)],
+        ['Boutique', formatFCFA(detailRecettes.boutique)],
+        ['Subvention reçue', formatFCFA(detailRecettes.subvention)],
+        ['Autres revenus', formatFCFA(detailRecettes.autresRevenus)],
         ['Total entrées réelles', formatFCFA(totalRessourcesReelles)],
-        ['dont Frais de participation', formatFCFA(resume?.total_frais_participation ?? 0)],
         ['Total sorties', formatFCFA(totalSorties)],
         ['Solde réel', formatFCFA(soldeReel)],
         ['Subvention estimée non reçue', formatFCFA(subventionEstimee)],
+        ['Valeur des dons en nature (hors trésorerie)', formatFCFA(valeurDonsNature)],
       ],
       styles: { fontSize: 9 },
       headStyles: { fillColor: [27, 59, 26] },
@@ -910,18 +949,44 @@ export default function TresorerieDashboard() {
             <section className="bg-white rounded-2xl border border-[#E7F2DE] shadow-sm p-5">
               <p className="text-sm font-bold text-[#1B3B1A] mb-3">Détail des recettes réelles</p>
               <div className="divide-y divide-[#E7F2DE] text-sm">
-                <div className="flex items-center justify-between py-2.5">
-                  <span className="text-gray-500">Frais de participation (versements campeurs)</span>
-                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(resume?.total_frais_participation ?? 0)}</span>
+                <div className="py-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Frais de participation (versements campeurs)</span>
+                    <span className="font-medium text-[#1B3B1A]">{formatFCFA(resume?.total_frais_participation ?? 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between pl-4 mt-1">
+                    <span className="text-xs text-gray-400">dont Enfant/Ado</span>
+                    <span className="text-xs text-gray-500">{formatFCFA(fraisDe('Enfant/Ado 15-'))}</span>
+                  </div>
+                  <div className="flex items-center justify-between pl-4">
+                    <span className="text-xs text-gray-400">dont Jeune/Adulte</span>
+                    <span className="text-xs text-gray-500">{formatFCFA(fraisDe('Adulte/Ado 16+'))}</span>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
-                  <span className="text-gray-500">Dons, boutique, subvention reçue, autres revenus</span>
-                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(totalRessourcesReelles - (resume?.total_frais_participation ?? 0))}</span>
+                  <span className="text-gray-500">Dons</span>
+                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(detailRecettes.dons)}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-gray-500">Boutique</span>
+                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(detailRecettes.boutique)}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-gray-500">Subvention reçue</span>
+                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(detailRecettes.subvention)}</span>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-gray-500">Autres revenus</span>
+                  <span className="font-medium text-[#1B3B1A]">{formatFCFA(detailRecettes.autresRevenus)}</span>
                 </div>
                 <div className="flex items-center justify-between py-2.5">
                   <span className="font-bold text-[#1B3B1A]">Total entrées réelles</span>
                   <span className="font-bold text-[#1B3B1A]">{formatFCFA(totalRessourcesReelles)}</span>
                 </div>
+              </div>
+              <div className="flex items-center justify-between py-2.5 mt-2 border-t border-dashed border-[#E7F2DE] text-sm">
+                <span className="text-gray-400 italic">Valeur des dons en nature (hors trésorerie, non comptée ci-dessus)</span>
+                <span className="text-gray-500 italic">{formatFCFA(valeurDonsNature)}</span>
               </div>
             </section>
 
