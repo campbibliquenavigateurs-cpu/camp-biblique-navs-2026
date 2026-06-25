@@ -318,9 +318,21 @@ export default function GestionInscriptions() {
     const feuilleDetail = utils.json_to_sheet(donnees)
     feuilleDetail['!cols'] = Object.keys(donnees[0] || {}).map(() => ({ wch: 18 }))
 
+    // Feuille "Émargement" — volontairement allégée (aucune donnée
+    // sensible : pas de contact d'urgence, pas de coordonnées), pour
+    // un usage rapide en liste de présence simple.
+    const lignesTrieesNom = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
+    const feuilleEmargement = utils.json_to_sheet(
+      lignesTrieesNom.map((l, i) => ({
+        'N°': i + 1, Nom: l.nom, Prénoms: l.prenoms, Catégorie: l.categorie ?? '', Téléphone: l.telephone,
+      }))
+    )
+    feuilleEmargement['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 16 }]
+
     const classeur = utils.book_new()
     utils.book_append_sheet(classeur, feuilleResume, 'Résumé')
     utils.book_append_sheet(classeur, feuilleDetail, 'Inscriptions')
+    utils.book_append_sheet(classeur, feuilleEmargement, 'Émargement')
     writeFileXLSX(classeur, `inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
@@ -355,14 +367,31 @@ export default function GestionInscriptions() {
       headStyles: { fillColor: [27, 59, 26] },
     })
 
+    // Émargement paginé à 12 noms par page imprimée, pour rester
+    // lisible et facile à faire signer en personne.
+    const PAR_PAGE_EMARGEMENT = 12
     const lignesTriees = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
-    autoTable(doc, {
-      head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', 'Signature']],
-      body: lignesTriees.map((l, i) => [String(i + 1), l.nom, l.prenoms, l.categorie ?? '', l.telephone, '']),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [27, 59, 26] },
-      columnStyles: { 5: { cellWidth: 35 } },
-    })
+    const nbPagesEmargement = Math.max(1, Math.ceil(lignesTriees.length / PAR_PAGE_EMARGEMENT))
+
+    for (let page = 0; page < nbPagesEmargement; page++) {
+      doc.addPage()
+      const debut = page * PAR_PAGE_EMARGEMENT
+      const lot = lignesTriees.slice(debut, debut + PAR_PAGE_EMARGEMENT)
+
+      doc.setFontSize(11)
+      doc.text("Liste d'émargement — Camp Biblique-Navs 2026", 14, 15)
+      doc.setFontSize(8)
+      doc.text(`Page ${page + 1} / ${nbPagesEmargement}`, 14, 20)
+
+      autoTable(doc, {
+        startY: 26,
+        head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', 'Signature']],
+        body: lot.map((l, i) => [String(debut + i + 1), l.nom, l.prenoms, l.categorie ?? '', l.telephone, '']),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [27, 59, 26] },
+        columnStyles: { 5: { cellWidth: 35 } },
+      })
+    }
     doc.save(`rapport_inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
