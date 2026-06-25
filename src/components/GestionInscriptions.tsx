@@ -17,7 +17,7 @@ import { SkeletonTableau } from './Skeleton'
 // ============================================================
 
 const ROLES_ADMIN = ['admin'] as const
-const PAR_PAGE = 20
+const PAR_PAGE = 13
 const COULEURS_FAMILLE = ['#5B8FB9', '#8E7CC3', '#5BAFA0', '#C77DBA', '#A3A86C']
 
 interface Inscription {
@@ -318,21 +318,30 @@ export default function GestionInscriptions() {
     const feuilleDetail = utils.json_to_sheet(donnees)
     feuilleDetail['!cols'] = Object.keys(donnees[0] || {}).map(() => ({ wch: 18 }))
 
-    // Feuille "Émargement" — volontairement allégée (aucune donnée
-    // sensible : pas de contact d'urgence, pas de coordonnées), pour
-    // un usage rapide en liste de présence simple.
-    const lignesTrieesNom = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
-    const feuilleEmargement = utils.json_to_sheet(
-      lignesTrieesNom.map((l, i) => ({
-        'N°': i + 1, Nom: l.nom, Prénoms: l.prenoms, Catégorie: l.categorie ?? '', Téléphone: l.telephone,
+    // Deux feuilles distinctes selon la catégorie, pour faciliter le
+    // travail des équipes qui ne gèrent qu'une seule tranche d'âge.
+    const colonnesUniformes = (liste: typeof triees) => {
+      const lignes = liste.map(l => ({
+        Nom: l.nom, Prénoms: l.prenoms, Genre: l.genre ?? '', Téléphone: l.telephone,
+        Ville: l.ville ?? '', 'Commune/Quartier': l.commune_quartier ?? '', 'Taille Polo': l.taille_polo ?? '',
+        'Contact urgence': l.contact_urgence_nom ?? '', 'Téléphone urgence': l.contact_urgence_telephone ?? '',
+        'Montant dû (F CFA)': l.montant_du ?? 0, 'Réduction (F CFA)': l.reduction_accordee ?? 0,
+        'Montant payé (F CFA)': l.montant_paye ?? 0, 'Solde (F CFA)': solde(l),
+        Statut: statutBadge(solde(l), l.montant_paye ?? 0).label,
+        "Date d'inscription": new Date(l.date_inscription).toLocaleDateString('fr-FR'),
       }))
-    )
-    feuilleEmargement['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 16 }]
+      const feuille = utils.json_to_sheet(lignes)
+      feuille['!cols'] = Object.keys(lignes[0] || {}).map(() => ({ wch: 18 }))
+      return feuille
+    }
+    const feuilleAdultes = colonnesUniformes(triees.filter(l => l.categorie === 'Adulte/Ado 16+'))
+    const feuilleEnfants = colonnesUniformes(triees.filter(l => l.categorie === 'Enfant/Ado 15-'))
 
     const classeur = utils.book_new()
     utils.book_append_sheet(classeur, feuilleResume, 'Résumé')
     utils.book_append_sheet(classeur, feuilleDetail, 'Inscriptions')
-    utils.book_append_sheet(classeur, feuilleEmargement, 'Émargement')
+    utils.book_append_sheet(classeur, feuilleAdultes, 'Adultes')
+    utils.book_append_sheet(classeur, feuilleEnfants, 'Enfants')
     writeFileXLSX(classeur, `inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
@@ -367,31 +376,16 @@ export default function GestionInscriptions() {
       headStyles: { fillColor: [27, 59, 26] },
     })
 
-    // Émargement paginé à 12 noms par page imprimée, pour rester
-    // lisible et facile à faire signer en personne.
-    const PAR_PAGE_EMARGEMENT = 12
     const lignesTriees = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
-    const nbPagesEmargement = Math.max(1, Math.ceil(lignesTriees.length / PAR_PAGE_EMARGEMENT))
-
-    for (let page = 0; page < nbPagesEmargement; page++) {
-      doc.addPage()
-      const debut = page * PAR_PAGE_EMARGEMENT
-      const lot = lignesTriees.slice(debut, debut + PAR_PAGE_EMARGEMENT)
-
-      doc.setFontSize(11)
-      doc.text("Liste d'émargement — Camp Biblique-Navs 2026", 14, 15)
-      doc.setFontSize(8)
-      doc.text(`Page ${page + 1} / ${nbPagesEmargement}`, 14, 20)
-
-      autoTable(doc, {
-        startY: 26,
-        head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', 'Signature']],
-        body: lot.map((l, i) => [String(debut + i + 1), l.nom, l.prenoms, l.categorie ?? '', l.telephone, '']),
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [27, 59, 26] },
-        columnStyles: { 5: { cellWidth: 35 } },
-      })
-    }
+    autoTable(doc, {
+      head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', "Date d'inscription"]],
+      body: lignesTriees.map((l, i) => [
+        String(i + 1), l.nom, l.prenoms, l.categorie ?? '', l.telephone,
+        new Date(l.date_inscription).toLocaleDateString('fr-FR'),
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [27, 59, 26] },
+    })
     doc.save(`rapport_inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
