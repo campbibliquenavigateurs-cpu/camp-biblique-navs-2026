@@ -34,3 +34,23 @@ export function formatDureeAudio(secondes: number): string {
   const s = Math.floor(secondes % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
 }
+
+// Uniformise la casse d'un nom ou prénom (Première Lettre En
+// Majuscule, reste en minuscule), quelle que soit la façon dont la
+// personne l'a saisi à l'inscription (TOUT MAJUSCULE, tout minuscule,
+// mélange...). Respecte les noms composés avec tiret ou apostrophe,
+// fréquents localement (ex : "n'guessan jean-marie" -> "N'Guessan Jean-Marie").
+export function formatNomCasse(texte: string | null | undefined): string {
+  if (!texte) return ''
+  return texte
+    .trim()
+    .toLowerCase()
+    .split(' ')
+    .map(mot =>
+      mot
+        .split(/([-'])/)
+        .map(partie => (partie === '-' || partie === "'" ? partie : partie.charAt(0).toUpperCase() + partie.slice(1)))
+        .join('')
+    )
+    .join(' ')
+}

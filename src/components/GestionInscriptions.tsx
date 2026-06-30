@@ -4,7 +4,7 @@ import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
-import { formatFCFA } from '../utils/format'
+import { formatFCFA, formatNomCasse } from '../utils/format'
 import { SkeletonTableau } from './Skeleton'
 
 // ============================================================
@@ -380,7 +380,7 @@ export default function GestionInscriptions() {
     autoTable(doc, {
       head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', "Date d'inscription"]],
       body: lignesTriees.map((l, i) => [
-        String(i + 1), l.nom, l.prenoms, l.categorie ?? '', l.telephone,
+        String(i + 1), formatNomCasse(l.nom), formatNomCasse(l.prenoms), l.categorie ?? '', l.telephone,
         new Date(l.date_inscription).toLocaleDateString('fr-FR'),
       ]),
       styles: { fontSize: 9 },
