@@ -746,110 +746,123 @@ export default function TresorerieDashboard() {
 
   // ---- Export Excel consolidé (5 feuilles, données complètes) ----
   async function exporterExcel() {
-    const { utils, writeFileXLSX } = await import('xlsx')
+    try {
+      const { utils, writeFileXLSX } = await import('xlsx')
 
-    const feuilleSynthese = utils.json_to_sheet([{
-      'Budget Global Prévu (F CFA)': objectifBudget,
-      'Frais de participation (F CFA)': resume?.total_frais_participation ?? 0,
-      'dont Enfant/Ado (F CFA)': fraisDe('Enfant/Ado 15-'),
-      'dont Jeune/Adulte (F CFA)': fraisDe('Adulte/Ado 16+'),
-      'Dons (F CFA)': detailRecettes.dons,
-      'Boutique (F CFA)': detailRecettes.boutique,
-      'Subvention reçue (F CFA)': detailRecettes.subvention,
-      'Autres revenus (F CFA)': detailRecettes.autresRevenus,
-      'Total entrées réelles (F CFA)': totalRessourcesReelles,
-      'Total sorties (F CFA)': totalSorties,
-      'Solde réel (F CFA)': soldeReel,
-      "Taux d'atteinte réel (%)": Math.round(tauxAtteinteReel * 10) / 10,
-      'Subvention estimée non reçue (F CFA)': subventionEstimee,
-      'Valeur des dons en nature — hors trésorerie (F CFA)': valeurDonsNature,
-    }])
+      const feuilleSynthese = utils.json_to_sheet([{
+        'Budget Global Prévu (F CFA)': objectifBudget,
+        'Frais de participation (F CFA)': resume?.total_frais_participation ?? 0,
+        'dont Enfant/Ado (F CFA)': fraisDe('Enfant/Ado 15-'),
+        'dont Jeune/Adulte (F CFA)': fraisDe('Adulte/Ado 16+'),
+        'Dons (F CFA)': detailRecettes.dons,
+        'Boutique (F CFA)': detailRecettes.boutique,
+        'Subvention reçue (F CFA)': detailRecettes.subvention,
+        'Autres revenus (F CFA)': detailRecettes.autresRevenus,
+        'Total entrées réelles (F CFA)': totalRessourcesReelles,
+        'Total sorties (F CFA)': totalSorties,
+        'Solde réel (F CFA)': soldeReel,
+        "Taux d'atteinte réel (%)": Math.round(tauxAtteinteReel * 10) / 10,
+        'Subvention estimée non reçue (F CFA)': subventionEstimee,
+        'Valeur des dons en nature — hors trésorerie (F CFA)': valeurDonsNature,
+      }])
 
-    const { data: inscriptions } = await supabase
-      .from('inscriptions')
-      .select('nom,prenoms,categorie,telephone,montant_du,montant_paye,reduction_accordee,date_inscription')
-    const feuilleInscriptions = utils.json_to_sheet(
-      (inscriptions ?? []).map((i: any) => ({
-        Nom: i.nom, Prénoms: i.prenoms, Catégorie: i.categorie, Téléphone: i.telephone,
-        'Montant dû': i.montant_du, 'Montant payé': i.montant_paye, Réduction: i.reduction_accordee,
-        Date: formatDateFr(i.date_inscription),
-      }))
-    )
+      const { data: inscriptions } = await supabase
+        .from('inscriptions')
+        .select('nom,prenoms,categorie,telephone,montant_du,montant_paye,reduction_accordee,date_inscription')
+      const feuilleInscriptions = utils.json_to_sheet(
+        (inscriptions ?? []).map((i: any) => ({
+          Nom: i.nom, Prénoms: i.prenoms, Catégorie: i.categorie, Téléphone: i.telephone,
+          'Montant dû': i.montant_du, 'Montant payé': i.montant_paye, Réduction: i.reduction_accordee,
+          Date: formatDateFr(i.date_inscription),
+        }))
+      )
 
-    const feuilleMobilisation = utils.json_to_sheet(
-      mobilisationLignes.map(l => ({
-        Type: libelleCategorieMobilisation(l.categorie), Détail: l.detail, Montant: l.montant, Date: formatDateFr(l.date_mouvement),
-      }))
-    )
+      const feuilleMobilisation = utils.json_to_sheet(
+        mobilisationLignes.map(l => ({
+          Type: libelleCategorieMobilisation(l.categorie), Détail: l.detail, Montant: l.montant, Date: formatDateFr(l.date_mouvement),
+        }))
+      )
 
-    const feuilleDons = utils.json_to_sheet(
-      donsNature.map(d => ({
-        Désignation: d.designation, Quantité: d.quantite, Unité: d.unite, 'Type donateur': d.type_donateur,
-        Donateur: d.nom_donateur, Commission: nomCommission(d.commission_id), 'Valeur estimée': d.valeur_estimee,
-        Date: formatDateFr(d.date_reception),
-      }))
-    )
+      const feuilleDons = utils.json_to_sheet(
+        donsNature.map(d => ({
+          Désignation: d.designation, Quantité: d.quantite, Unité: d.unite, 'Type donateur': d.type_donateur,
+          Donateur: d.nom_donateur, Commission: nomCommission(d.commission_id), 'Valeur estimée': d.valeur_estimee,
+          Date: formatDateFr(d.date_reception),
+        }))
+      )
 
-    const feuilleCommissions = utils.json_to_sheet(
-      commissions.map(c => ({
-        Commission: c.nom, Responsable: c.nom_responsable, Téléphone: c.telephone_responsable,
-        'Budget initial': c.budget_initial, 'Budget réel décaissable': c.budget_reel_decaissable,
-        'Cumul dépenses': c.cumul_depenses, 'Solde restant': c.solde_restant,
-      }))
-    )
+      const feuilleCommissions = utils.json_to_sheet(
+        commissions.map(c => ({
+          Commission: c.nom, Responsable: c.nom_responsable, Téléphone: c.telephone_responsable,
+          'Budget initial': c.budget_initial, 'Budget réel décaissable': c.budget_reel_decaissable,
+          'Cumul dépenses': c.cumul_depenses, 'Solde restant': c.solde_restant,
+        }))
+      )
 
-    const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, feuilleSynthese, 'Synthèse Budgétaire')
-    utils.book_append_sheet(classeur, feuilleInscriptions, 'Registre Inscriptions')
-    utils.book_append_sheet(classeur, feuilleMobilisation, 'Mobilisation des Fonds')
-    utils.book_append_sheet(classeur, feuilleDons, 'Dons en Nature')
-    utils.book_append_sheet(classeur, feuilleCommissions, 'Suivi des Commissions')
-    writeFileXLSX(classeur, `tresorerie_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      const classeur = utils.book_new()
+      utils.book_append_sheet(classeur, feuilleSynthese, 'Synthèse Budgétaire')
+      utils.book_append_sheet(classeur, feuilleInscriptions, 'Registre Inscriptions')
+      utils.book_append_sheet(classeur, feuilleMobilisation, 'Mobilisation des Fonds')
+      utils.book_append_sheet(classeur, feuilleDons, 'Dons en Nature')
+      utils.book_append_sheet(classeur, feuilleCommissions, 'Suivi des Commissions')
+      writeFileXLSX(classeur, `tresorerie_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch {
+      // Échec probable du chargement d'un module technique après une mise
+      // à jour de l'application en arrière-plan. Un rechargement récupère
+      // automatiquement la version à jour, sans manipulation manuelle.
+      toast.erreur("Échec de la génération — l'application va se recharger, merci de réessayer ensuite.")
+      setTimeout(() => window.location.reload(), 1500)
+    }
   }
 
   // ---- Export PDF (rapport financier consolidé) ----
   async function exporterPDF() {
-    const { default: jsPDF } = await import('jspdf')
-    const autoTable = (await import('jspdf-autotable')).default
-    const doc = new jsPDF()
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF()
 
-    doc.setFontSize(13)
-    doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
-    doc.setFontSize(11)
-    doc.text('Rapport financier — Camp Biblique-Navs 2026', 14, 22)
-    doc.setFontSize(9)
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28)
+      doc.setFontSize(13)
+      doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
+      doc.setFontSize(11)
+      doc.text('Rapport financier — Camp Biblique-Navs 2026', 14, 22)
+      doc.setFontSize(9)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28)
 
-    autoTable(doc, {
-      startY: 35,
-      head: [['Indicateur', 'Montant']],
-      body: [
-        ['Budget Global Prévu', formatFCFA(objectifBudget)],
-        ['Frais de participation', formatFCFA(resume?.total_frais_participation ?? 0)],
-        ['  dont Enfant/Ado', formatFCFA(fraisDe('Enfant/Ado 15-'))],
-        ['  dont Jeune/Adulte', formatFCFA(fraisDe('Adulte/Ado 16+'))],
-        ['Dons', formatFCFA(detailRecettes.dons)],
-        ['Boutique', formatFCFA(detailRecettes.boutique)],
-        ['Subvention reçue', formatFCFA(detailRecettes.subvention)],
-        ['Autres revenus', formatFCFA(detailRecettes.autresRevenus)],
-        ['Total entrées réelles', formatFCFA(totalRessourcesReelles)],
-        ['Total sorties', formatFCFA(totalSorties)],
-        ['Solde réel', formatFCFA(soldeReel)],
-        ['Subvention estimée non reçue', formatFCFA(subventionEstimee)],
-        ['Valeur des dons en nature (hors trésorerie)', formatFCFA(valeurDonsNature)],
-      ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
+      autoTable(doc, {
+        startY: 35,
+        head: [['Indicateur', 'Montant']],
+        body: [
+          ['Budget Global Prévu', formatFCFA(objectifBudget)],
+          ['Frais de participation', formatFCFA(resume?.total_frais_participation ?? 0)],
+          ['  dont Enfant/Ado', formatFCFA(fraisDe('Enfant/Ado 15-'))],
+          ['  dont Jeune/Adulte', formatFCFA(fraisDe('Adulte/Ado 16+'))],
+          ['Dons', formatFCFA(detailRecettes.dons)],
+          ['Boutique', formatFCFA(detailRecettes.boutique)],
+          ['Subvention reçue', formatFCFA(detailRecettes.subvention)],
+          ['Autres revenus', formatFCFA(detailRecettes.autresRevenus)],
+          ['Total entrées réelles', formatFCFA(totalRessourcesReelles)],
+          ['Total sorties', formatFCFA(totalSorties)],
+          ['Solde réel', formatFCFA(soldeReel)],
+          ['Subvention estimée non reçue', formatFCFA(subventionEstimee)],
+          ['Valeur des dons en nature (hors trésorerie)', formatFCFA(valeurDonsNature)],
+        ],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
 
-    autoTable(doc, {
-      head: [['Commission', 'Budget réel', 'Dépenses', 'Solde restant']],
-      body: commissions.map(c => [c.nom, formatFCFA(c.budget_reel_decaissable), formatFCFA(c.cumul_depenses), formatFCFA(c.solde_restant)]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
+      autoTable(doc, {
+        head: [['Commission', 'Budget réel', 'Dépenses', 'Solde restant']],
+        body: commissions.map(c => [c.nom, formatFCFA(c.budget_reel_decaissable), formatFCFA(c.cumul_depenses), formatFCFA(c.solde_restant)]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
 
-    doc.save(`rapport_financier_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+      doc.save(`rapport_financier_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se recharger, merci de réessayer ensuite.")
+      setTimeout(() => window.location.reload(), 1500)
+    }
   }
 
   if (statutAcces === 'verification') {
