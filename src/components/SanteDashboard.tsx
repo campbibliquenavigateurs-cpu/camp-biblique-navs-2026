@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import { formatDateFr } from '../utils/format'
+import { recupererApresEchecChargement } from '../utils/recuperation'
 import { Modale, BoutonSupprimer, BoutonModifier, Pagination, paginer } from './ComposantsTableau'
 import { SkeletonTableau } from './Skeleton'
 import AccesRestreint from './AccesRestreint'
@@ -707,67 +708,77 @@ export default function SanteDashboard() {
 
   // ---- Export Excel (consultations, stock, statistiques) ----
   async function exporterExcel() {
-    const { utils, writeFileXLSX } = await import('xlsx')
+    try {
+      const { utils, writeFileXLSX } = await import('xlsx')
 
-    const feuilleConsultations = utils.json_to_sheet(consultations.map(c => ({
-      Campeur: nomCampeur(c.inscription_id), Type: c.type_entree === 'dispense_rapide' ? 'Dispense rapide' : 'Consultation',
-      Motif: c.motif ?? '', 'Température': c.temperature ?? '', Tension: c.tension ?? '',
-      Soins: c.description_soins ?? '', Médicament: nomMedicament(c.medicament_id), Quantité: c.quantite_distribuee ?? '',
-      Statut: c.statut_sortie ?? '', Date: formatDateFr(c.created_at),
-    })))
+      const feuilleConsultations = utils.json_to_sheet(consultations.map(c => ({
+        Campeur: nomCampeur(c.inscription_id), Type: c.type_entree === 'dispense_rapide' ? 'Dispense rapide' : 'Consultation',
+        Motif: c.motif ?? '', 'Température': c.temperature ?? '', Tension: c.tension ?? '',
+        Soins: c.description_soins ?? '', Médicament: nomMedicament(c.medicament_id), Quantité: c.quantite_distribuee ?? '',
+        Statut: c.statut_sortie ?? '', Date: formatDateFr(c.created_at),
+      })))
 
-    const feuilleStock = utils.json_to_sheet(medicaments.map(m => ({
-      Médicament: m.nom, 'Quantité en stock': m.quantite_stock, Unité: m.unite ?? '', "Seuil d'alerte": m.seuil_alerte ?? '',
-    })))
+      const feuilleStock = utils.json_to_sheet(medicaments.map(m => ({
+        Médicament: m.nom, 'Quantité en stock': m.quantite_stock, Unité: m.unite ?? '', "Seuil d'alerte": m.seuil_alerte ?? '',
+      })))
 
-    const parMotif = new Map<string, number>()
-    consultations.forEach(c => { if (c.motif) parMotif.set(c.motif, (parMotif.get(c.motif) ?? 0) + 1) })
-    const feuilleStats = utils.json_to_sheet([
-      { Indicateur: 'Total consultations', Valeur: consultations.length },
-      { Indicateur: 'Patients actuellement suivis', Valeur: patientsSuivis.length },
-      ...[...parMotif.entries()].map(([motif, n]) => ({ Indicateur: `Motif — ${motif}`, Valeur: n })),
-    ])
+      const parMotif = new Map<string, number>()
+      consultations.forEach(c => { if (c.motif) parMotif.set(c.motif, (parMotif.get(c.motif) ?? 0) + 1) })
+      const feuilleStats = utils.json_to_sheet([
+        { Indicateur: 'Total consultations', Valeur: consultations.length },
+        { Indicateur: 'Patients actuellement suivis', Valeur: patientsSuivis.length },
+        ...[...parMotif.entries()].map(([motif, n]) => ({ Indicateur: `Motif — ${motif}`, Valeur: n })),
+      ])
 
-    const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, feuilleStats, 'Statistiques')
-    utils.book_append_sheet(classeur, feuilleConsultations, 'Consultations')
-    utils.book_append_sheet(classeur, feuilleStock, 'Stock Pharmacie')
-    writeFileXLSX(classeur, `sante_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      const classeur = utils.book_new()
+      utils.book_append_sheet(classeur, feuilleStats, 'Statistiques')
+      utils.book_append_sheet(classeur, feuilleConsultations, 'Consultations')
+      utils.book_append_sheet(classeur, feuilleStock, 'Stock Pharmacie')
+      writeFileXLSX(classeur, `sante_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   // ---- Export PDF (rapport synthétique) ----
   async function exporterPDF() {
-    const { default: jsPDF } = await import('jspdf')
-    const autoTable = (await import('jspdf-autotable')).default
-    const doc = new jsPDF()
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF()
 
-    doc.setFontSize(13)
-    doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
-    doc.setFontSize(11)
-    doc.text('Rapport santé — Camp Biblique-Navs 2026', 14, 22)
-    doc.setFontSize(9)
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28)
+      doc.setFontSize(13)
+      doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
+      doc.setFontSize(11)
+      doc.text('Rapport santé — Camp Biblique-Navs 2026', 14, 22)
+      doc.setFontSize(9)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28)
 
-    autoTable(doc, {
-      startY: 35,
-      head: [['Indicateur', 'Valeur']],
-      body: [
-        ['Total consultations', String(consultations.length)],
-        ['Patients actuellement suivis', String(patientsSuivis.length)],
-        ['Médicaments en stock', String(medicaments.length)],
-      ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
+      autoTable(doc, {
+        startY: 35,
+        head: [['Indicateur', 'Valeur']],
+        body: [
+          ['Total consultations', String(consultations.length)],
+          ['Patients actuellement suivis', String(patientsSuivis.length)],
+          ['Médicaments en stock', String(medicaments.length)],
+        ],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
 
-    autoTable(doc, {
-      head: [['Campeur', 'Motif', 'Statut', 'Date']],
-      body: consultations.map(c => [nomCampeur(c.inscription_id), c.motif ?? '—', c.statut_sortie ?? '—', formatDateFr(c.created_at)]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
+      autoTable(doc, {
+        head: [['Campeur', 'Motif', 'Statut', 'Date']],
+        body: consultations.map(c => [nomCampeur(c.inscription_id), c.motif ?? '—', c.statut_sortie ?? '—', formatDateFr(c.created_at)]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
 
-    doc.save(`rapport_sante_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+      doc.save(`rapport_sante_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   if (statutAcces === 'verification') {

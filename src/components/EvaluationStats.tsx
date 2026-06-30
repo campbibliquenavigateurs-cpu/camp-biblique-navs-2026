@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import { formatDateFr } from '../utils/format'
+import { recupererApresEchecChargement } from '../utils/recuperation'
 import { Modale, BoutonSupprimer, BoutonModifier, Pagination, paginer, ToggleVisible, CarteKPI } from './ComposantsTableau'
 import { SkeletonCarteKPI, SkeletonTableau } from './Skeleton'
 import AccesRestreint from './AccesRestreint'
@@ -163,19 +164,24 @@ export default function EvaluationStats() {
   }
 
   async function exporterExcel() {
-    const { utils, writeFileXLSX } = await import('xlsx')
+    try {
+      const { utils, writeFileXLSX } = await import('xlsx')
 
-    const feuilleRubriques = utils.json_to_sheet(
-      rubriques.map(r => ({ Rubrique: r.nom, 'Note moyenne': r.note_moyenne, 'Nombre de votes': r.nb_votes }))
-    )
-    const feuilleCommentaires = utils.json_to_sheet(
-      commentaires.map(c => ({ Rubrique: c.rubrique, Note: c.note, Commentaire: c.commentaire, Date: formatDateFr(c.date_vote) }))
-    )
+      const feuilleRubriques = utils.json_to_sheet(
+        rubriques.map(r => ({ Rubrique: r.nom, 'Note moyenne': r.note_moyenne, 'Nombre de votes': r.nb_votes }))
+      )
+      const feuilleCommentaires = utils.json_to_sheet(
+        commentaires.map(c => ({ Rubrique: c.rubrique, Note: c.note, Commentaire: c.commentaire, Date: formatDateFr(c.date_vote) }))
+      )
 
-    const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, feuilleRubriques, 'Rubriques')
-    utils.book_append_sheet(classeur, feuilleCommentaires, 'Commentaires')
-    writeFileXLSX(classeur, `evaluation_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      const classeur = utils.book_new()
+      utils.book_append_sheet(classeur, feuilleRubriques, 'Rubriques')
+      utils.book_append_sheet(classeur, feuilleCommentaires, 'Commentaires')
+      writeFileXLSX(classeur, `evaluation_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   if (statutAcces === 'verification') {

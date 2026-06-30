@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import { formatFCFA, formatDateFr } from '../utils/format'
+import { recupererApresEchecChargement } from '../utils/recuperation'
 import { Modale, BoutonSupprimer, BoutonModifier, Pagination, CarteKPI, paginer } from './ComposantsTableau'
 import { SkeletonCarteKPI } from './Skeleton'
 import AccesRestreint from './AccesRestreint'
@@ -811,7 +812,7 @@ export default function TresorerieDashboard() {
       // à jour de l'application en arrière-plan. Un rechargement récupère
       // automatiquement la version à jour, sans manipulation manuelle.
       toast.erreur("Échec de la génération — l'application va se recharger, merci de réessayer ensuite.")
-      setTimeout(() => window.location.reload(), 1500)
+      recupererApresEchecChargement()
     }
   }
 
@@ -861,7 +862,7 @@ export default function TresorerieDashboard() {
       doc.save(`rapport_financier_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
     } catch {
       toast.erreur("Échec de la génération — l'application va se recharger, merci de réessayer ensuite.")
-      setTimeout(() => window.location.reload(), 1500)
+      recupererApresEchecChargement()
     }
   }
 

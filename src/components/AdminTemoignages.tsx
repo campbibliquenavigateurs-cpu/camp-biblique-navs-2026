@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import { formatDateFr } from '../utils/format'
+import { recupererApresEchecChargement } from '../utils/recuperation'
 import { Modale, BoutonSupprimer, BoutonModifier, Pagination, paginer, ToggleVisible } from './ComposantsTableau'
 import { SkeletonTableau } from './Skeleton'
 import AccesRestreint from './AccesRestreint'
@@ -127,16 +128,21 @@ export default function AdminTemoignages() {
   }
 
   async function exporterExcel() {
-    const { utils, writeFileXLSX } = await import('xlsx')
-    const feuille = utils.json_to_sheet(
-      enLigne.map(t => ({
-        Date: formatDateFr(t.created_at), Auteur: nomAuteur(t), Commission: nomCommission(t.commission_id),
-        Témoignage: t.contenu, "Nombre d'interactions": t.nb_reactions,
-      }))
-    )
-    const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, feuille, 'Témoignages')
-    writeFileXLSX(classeur, `temoignages_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    try {
+      const { utils, writeFileXLSX } = await import('xlsx')
+      const feuille = utils.json_to_sheet(
+        enLigne.map(t => ({
+          Date: formatDateFr(t.created_at), Auteur: nomAuteur(t), Commission: nomCommission(t.commission_id),
+          Témoignage: t.contenu, "Nombre d'interactions": t.nb_reactions,
+        }))
+      )
+      const classeur = utils.book_new()
+      utils.book_append_sheet(classeur, feuille, 'Témoignages')
+      writeFileXLSX(classeur, `temoignages_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   if (statutAcces === 'verification') {

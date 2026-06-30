@@ -5,6 +5,7 @@ import { useToast } from './Toast'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
 import { formatFCFA, formatNomCasse } from '../utils/format'
+import { recupererApresEchecChargement } from '../utils/recuperation'
 import { SkeletonTableau } from './Skeleton'
 
 // ============================================================
@@ -281,112 +282,122 @@ export default function GestionInscriptions() {
 
   // ---- Export Excel (feuille Résumé + feuille Détail) ----
   async function exporterExcel() {
-    const { utils, writeFileXLSX } = await import('xlsx')
+    try {
+      const { utils, writeFileXLSX } = await import('xlsx')
 
-    const totalDu = triees.reduce((s, l) => s + (l.montant_du ?? 0), 0)
-    const totalReduction = triees.reduce((s, l) => s + (l.reduction_accordee ?? 0), 0)
-    const totalPaye = triees.reduce((s, l) => s + (l.montant_paye ?? 0), 0)
-    const totalSolde = triees.reduce((s, l) => s + solde(l), 0)
-    const nbAdultes = triees.filter(l => l.categorie === 'Adulte/Ado 16+').length
-    const nbEnfants = triees.filter(l => l.categorie === 'Enfant/Ado 15-').length
+      const totalDu = triees.reduce((s, l) => s + (l.montant_du ?? 0), 0)
+      const totalReduction = triees.reduce((s, l) => s + (l.reduction_accordee ?? 0), 0)
+      const totalPaye = triees.reduce((s, l) => s + (l.montant_paye ?? 0), 0)
+      const totalSolde = triees.reduce((s, l) => s + solde(l), 0)
+      const nbAdultes = triees.filter(l => l.categorie === 'Adulte/Ado 16+').length
+      const nbEnfants = triees.filter(l => l.categorie === 'Enfant/Ado 15-').length
 
-    const feuilleResume = utils.json_to_sheet([{
-      'Camp': 'Camp Biblique-Navs 2026',
-      'Généré le': new Date().toLocaleDateString('fr-FR'),
-      'Nombre total d\'inscrits': triees.length,
-      'dont Adultes/Ados 16+': nbAdultes,
-      'dont Enfants/Ados 15-': nbEnfants,
-      'En attente': stats.enAttente,
-      'Paiement partiel': stats.partiel,
-      'Soldé': stats.solde,
-      'Total dû (F CFA)': totalDu,
-      'Total réduction (F CFA)': totalReduction,
-      'Total payé (F CFA)': totalPaye,
-      'Total solde restant (F CFA)': totalSolde,
-    }])
+      const feuilleResume = utils.json_to_sheet([{
+        'Camp': 'Camp Biblique-Navs 2026',
+        'Généré le': new Date().toLocaleDateString('fr-FR'),
+        'Nombre total d\'inscrits': triees.length,
+        'dont Adultes/Ados 16+': nbAdultes,
+        'dont Enfants/Ados 15-': nbEnfants,
+        'En attente': stats.enAttente,
+        'Paiement partiel': stats.partiel,
+        'Soldé': stats.solde,
+        'Total dû (F CFA)': totalDu,
+        'Total réduction (F CFA)': totalReduction,
+        'Total payé (F CFA)': totalPaye,
+        'Total solde restant (F CFA)': totalSolde,
+      }])
 
-    const donnees = triees.map(l => ({
-      Nom: l.nom, Prénoms: l.prenoms, Genre: l.genre ?? '', Catégorie: l.categorie ?? '',
-      Téléphone: l.telephone, Ville: l.ville ?? '', 'Commune/Quartier': l.commune_quartier ?? '',
-      'Taille Polo': l.taille_polo ?? '', 'Contact urgence': l.contact_urgence_nom ?? '',
-      'Téléphone urgence': l.contact_urgence_telephone ?? '',
-      'Montant dû (F CFA)': l.montant_du ?? 0, 'Réduction (F CFA)': l.reduction_accordee ?? 0,
-      'Montant payé (F CFA)': l.montant_paye ?? 0, 'Solde (F CFA)': solde(l),
-      Statut: statutBadge(solde(l), l.montant_paye ?? 0).label,
-      "Date d'inscription": new Date(l.date_inscription).toLocaleDateString('fr-FR'),
-    }))
-    const feuilleDetail = utils.json_to_sheet(donnees)
-    feuilleDetail['!cols'] = Object.keys(donnees[0] || {}).map(() => ({ wch: 18 }))
-
-    // Deux feuilles distinctes selon la catégorie, pour faciliter le
-    // travail des équipes qui ne gèrent qu'une seule tranche d'âge.
-    const colonnesUniformes = (liste: typeof triees) => {
-      const lignes = liste.map(l => ({
-        Nom: l.nom, Prénoms: l.prenoms, Genre: l.genre ?? '', Téléphone: l.telephone,
-        Ville: l.ville ?? '', 'Commune/Quartier': l.commune_quartier ?? '', 'Taille Polo': l.taille_polo ?? '',
-        'Contact urgence': l.contact_urgence_nom ?? '', 'Téléphone urgence': l.contact_urgence_telephone ?? '',
+      const donnees = triees.map(l => ({
+        Nom: l.nom, Prénoms: l.prenoms, Genre: l.genre ?? '', Catégorie: l.categorie ?? '',
+        Téléphone: l.telephone, Ville: l.ville ?? '', 'Commune/Quartier': l.commune_quartier ?? '',
+        'Taille Polo': l.taille_polo ?? '', 'Contact urgence': l.contact_urgence_nom ?? '',
+        'Téléphone urgence': l.contact_urgence_telephone ?? '',
         'Montant dû (F CFA)': l.montant_du ?? 0, 'Réduction (F CFA)': l.reduction_accordee ?? 0,
         'Montant payé (F CFA)': l.montant_paye ?? 0, 'Solde (F CFA)': solde(l),
         Statut: statutBadge(solde(l), l.montant_paye ?? 0).label,
         "Date d'inscription": new Date(l.date_inscription).toLocaleDateString('fr-FR'),
       }))
-      const feuille = utils.json_to_sheet(lignes)
-      feuille['!cols'] = Object.keys(lignes[0] || {}).map(() => ({ wch: 18 }))
-      return feuille
-    }
-    const feuilleAdultes = colonnesUniformes(triees.filter(l => l.categorie === 'Adulte/Ado 16+'))
-    const feuilleEnfants = colonnesUniformes(triees.filter(l => l.categorie === 'Enfant/Ado 15-'))
+      const feuilleDetail = utils.json_to_sheet(donnees)
+      feuilleDetail['!cols'] = Object.keys(donnees[0] || {}).map(() => ({ wch: 18 }))
 
-    const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, feuilleResume, 'Résumé')
-    utils.book_append_sheet(classeur, feuilleDetail, 'Inscriptions')
-    utils.book_append_sheet(classeur, feuilleAdultes, 'Adultes')
-    utils.book_append_sheet(classeur, feuilleEnfants, 'Enfants')
-    writeFileXLSX(classeur, `inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      // Deux feuilles distinctes selon la catégorie, pour faciliter le
+      // travail des équipes qui ne gèrent qu'une seule tranche d'âge.
+      const colonnesUniformes = (liste: typeof triees) => {
+        const lignes = liste.map(l => ({
+          Nom: l.nom, Prénoms: l.prenoms, Genre: l.genre ?? '', Téléphone: l.telephone,
+          Ville: l.ville ?? '', 'Commune/Quartier': l.commune_quartier ?? '', 'Taille Polo': l.taille_polo ?? '',
+          'Contact urgence': l.contact_urgence_nom ?? '', 'Téléphone urgence': l.contact_urgence_telephone ?? '',
+          'Montant dû (F CFA)': l.montant_du ?? 0, 'Réduction (F CFA)': l.reduction_accordee ?? 0,
+          'Montant payé (F CFA)': l.montant_paye ?? 0, 'Solde (F CFA)': solde(l),
+          Statut: statutBadge(solde(l), l.montant_paye ?? 0).label,
+          "Date d'inscription": new Date(l.date_inscription).toLocaleDateString('fr-FR'),
+        }))
+        const feuille = utils.json_to_sheet(lignes)
+        feuille['!cols'] = Object.keys(lignes[0] || {}).map(() => ({ wch: 18 }))
+        return feuille
+      }
+      const feuilleAdultes = colonnesUniformes(triees.filter(l => l.categorie === 'Adulte/Ado 16+'))
+      const feuilleEnfants = colonnesUniformes(triees.filter(l => l.categorie === 'Enfant/Ado 15-'))
+
+      const classeur = utils.book_new()
+      utils.book_append_sheet(classeur, feuilleResume, 'Résumé')
+      utils.book_append_sheet(classeur, feuilleDetail, 'Inscriptions')
+      utils.book_append_sheet(classeur, feuilleAdultes, 'Adultes')
+      utils.book_append_sheet(classeur, feuilleEnfants, 'Enfants')
+      writeFileXLSX(classeur, `inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   // ---- Export PDF (résumé financier + émargement) ----
   async function exporterPDF() {
-    const { default: jsPDF } = await import('jspdf')
-    const autoTable = (await import('jspdf-autotable')).default
-    const doc = new jsPDF()
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF()
 
-    const totalDu = triees.reduce((s, l) => s + (l.montant_du ?? 0), 0)
-    const totalPaye = triees.reduce((s, l) => s + (l.montant_paye ?? 0), 0)
-    const totalSolde = triees.reduce((s, l) => s + solde(l), 0)
+      const totalDu = triees.reduce((s, l) => s + (l.montant_du ?? 0), 0)
+      const totalPaye = triees.reduce((s, l) => s + (l.montant_paye ?? 0), 0)
+      const totalSolde = triees.reduce((s, l) => s + solde(l), 0)
 
-    doc.setFontSize(13)
-    doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
-    doc.setFontSize(11)
-    doc.text('Rapport des inscriptions — Camp Biblique-Navs 2026', 14, 22)
-    doc.setFontSize(9)
-    doc.text('23 – 29 août 2026 · La Sablière, Bingerville', 14, 28)
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} · ${triees.length} inscrit(s)`, 14, 33)
+      doc.setFontSize(13)
+      doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
+      doc.setFontSize(11)
+      doc.text('Rapport des inscriptions — Camp Biblique-Navs 2026', 14, 22)
+      doc.setFontSize(9)
+      doc.text('23 – 29 août 2026 · La Sablière, Bingerville', 14, 28)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} · ${triees.length} inscrit(s)`, 14, 33)
 
-    autoTable(doc, {
-      startY: 40,
-      head: [['Indicateur', 'Valeur']],
-      body: [
-        ['Total dû', formatFCFA(totalDu)],
-        ['Total payé', formatFCFA(totalPaye)],
-        ['Total solde restant', formatFCFA(totalSolde)],
-        ['En attente / Partiel / Soldé', `${stats.enAttente} / ${stats.partiel} / ${stats.solde}`],
-      ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
+      autoTable(doc, {
+        startY: 40,
+        head: [['Indicateur', 'Valeur']],
+        body: [
+          ['Total dû', formatFCFA(totalDu)],
+          ['Total payé', formatFCFA(totalPaye)],
+          ['Total solde restant', formatFCFA(totalSolde)],
+          ['En attente / Partiel / Soldé', `${stats.enAttente} / ${stats.partiel} / ${stats.solde}`],
+        ],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
 
-    const lignesTriees = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
-    autoTable(doc, {
-      head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', "Date d'inscription"]],
-      body: lignesTriees.map((l, i) => [
-        String(i + 1), formatNomCasse(l.nom), formatNomCasse(l.prenoms), l.categorie ?? '', l.telephone,
-        new Date(l.date_inscription).toLocaleDateString('fr-FR'),
-      ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
-    doc.save(`rapport_inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+      const lignesTriees = [...triees].sort((a, b) => a.nom.localeCompare(b.nom))
+      autoTable(doc, {
+        head: [['N°', 'Nom', 'Prénoms', 'Catégorie', 'Téléphone', "Date d'inscription"]],
+        body: lignesTriees.map((l, i) => [
+          String(i + 1), formatNomCasse(l.nom), formatNomCasse(l.prenoms), l.categorie ?? '', l.telephone,
+          new Date(l.date_inscription).toLocaleDateString('fr-FR'),
+        ]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
+      doc.save(`rapport_inscriptions_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   if (statutAcces === 'verification') {

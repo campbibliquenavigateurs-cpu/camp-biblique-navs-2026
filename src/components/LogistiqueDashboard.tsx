@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAccesRole } from '../hooks/useAccesRole'
 import { useToast } from './Toast'
 import { formatFCFA } from '../utils/format'
+import { recupererApresEchecChargement } from '../utils/recuperation'
 import { Modale, BoutonSupprimer, BoutonModifier, Pagination, CarteKPI, paginer } from './ComposantsTableau'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
@@ -579,99 +580,109 @@ export default function LogistiqueDashboard() {
 
   // ---- Export Excel consolidé (3 feuilles) ----
   async function exporterExcel() {
-    const { utils, writeFileXLSX } = await import('xlsx')
+    try {
+      const { utils, writeFileXLSX } = await import('xlsx')
 
-    const feuilleInventaire = utils.json_to_sheet(materiels.map(m => ({
-      Désignation: m.designation, Catégorie: nomCategorie(m.categorie_id),
-      'Quantité initiale': m.quantite_depart ?? 0,
-      "Mode d'acquisition": libelle(MODES_ACQUISITION, m.mode_acquisition),
-      'Statut acquisition': libelle(STATUTS_ACQUISITION, m.statut_acquisition),
-      Commission: nomCommission(m.commission_id), 'Lieu de stockage': m.lieu_stockage ?? '',
-      'Retour bon état': m.quantite_retournee_bon_etat ?? '', Manquant: m.quantite_manquante ?? '', Cassé: m.quantite_cassee ?? '',
-      'Statut restitution': libelle(STATUTS_RESTITUTION, m.statut_restitution),
-    })))
-
-    const feuilleTransport = utils.json_to_sheet(convois.map(c => {
-      const v = vehiculeDe(c)
-      return {
-        Véhicule: v ? `${libelle(TYPES_VEHICULE, v.type)} (${v.immatriculation ?? '—'})` : '—',
-        Chauffeur: v?.nom_chauffeur ?? '—', 'Téléphone chauffeur': v?.telephone_chauffeur ?? '—',
-        'Type convoi': libelle(TYPES_CONVOI, c.type_convoi), Contenu: c.contenu ?? '',
-        'Heure départ': c.heure_depart ? new Date(c.heure_depart).toLocaleString('fr-FR') : '—',
-        Statut: libelle(STATUTS_CONVOI, c.statut),
-      }
-    }))
-
-    const feuilleFournisseurs = utils.json_to_sheet(
-      materiels.filter(m => m.nom_fournisseur).map(m => ({
-        Désignation: m.designation, Fournisseur: m.nom_fournisseur ?? '', Téléphone: m.telephone_fournisseur ?? '',
+      const feuilleInventaire = utils.json_to_sheet(materiels.map(m => ({
+        Désignation: m.designation, Catégorie: nomCategorie(m.categorie_id),
+        'Quantité initiale': m.quantite_depart ?? 0,
         "Mode d'acquisition": libelle(MODES_ACQUISITION, m.mode_acquisition),
-        'Montant (F CFA)': m.montant_acquisition ?? 0, Statut: libelle(STATUTS_ACQUISITION, m.statut_acquisition),
-      }))
-    )
+        'Statut acquisition': libelle(STATUTS_ACQUISITION, m.statut_acquisition),
+        Commission: nomCommission(m.commission_id), 'Lieu de stockage': m.lieu_stockage ?? '',
+        'Retour bon état': m.quantite_retournee_bon_etat ?? '', Manquant: m.quantite_manquante ?? '', Cassé: m.quantite_cassee ?? '',
+        'Statut restitution': libelle(STATUTS_RESTITUTION, m.statut_restitution),
+      })))
 
-    const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, feuilleInventaire, 'Bilan Inventaire Matériel')
-    utils.book_append_sheet(classeur, feuilleTransport, 'Plan de Transport & Passagers')
-    utils.book_append_sheet(classeur, feuilleFournisseurs, 'Suivi Fournisseurs & Cautions')
-    writeFileXLSX(classeur, `logistique_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      const feuilleTransport = utils.json_to_sheet(convois.map(c => {
+        const v = vehiculeDe(c)
+        return {
+          Véhicule: v ? `${libelle(TYPES_VEHICULE, v.type)} (${v.immatriculation ?? '—'})` : '—',
+          Chauffeur: v?.nom_chauffeur ?? '—', 'Téléphone chauffeur': v?.telephone_chauffeur ?? '—',
+          'Type convoi': libelle(TYPES_CONVOI, c.type_convoi), Contenu: c.contenu ?? '',
+          'Heure départ': c.heure_depart ? new Date(c.heure_depart).toLocaleString('fr-FR') : '—',
+          Statut: libelle(STATUTS_CONVOI, c.statut),
+        }
+      }))
+
+      const feuilleFournisseurs = utils.json_to_sheet(
+        materiels.filter(m => m.nom_fournisseur).map(m => ({
+          Désignation: m.designation, Fournisseur: m.nom_fournisseur ?? '', Téléphone: m.telephone_fournisseur ?? '',
+          "Mode d'acquisition": libelle(MODES_ACQUISITION, m.mode_acquisition),
+          'Montant (F CFA)': m.montant_acquisition ?? 0, Statut: libelle(STATUTS_ACQUISITION, m.statut_acquisition),
+        }))
+      )
+
+      const classeur = utils.book_new()
+      utils.book_append_sheet(classeur, feuilleInventaire, 'Bilan Inventaire Matériel')
+      utils.book_append_sheet(classeur, feuilleTransport, 'Plan de Transport & Passagers')
+      utils.book_append_sheet(classeur, feuilleFournisseurs, 'Suivi Fournisseurs & Cautions')
+      writeFileXLSX(classeur, `logistique_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   // ---- Export PDF (rapport + fiches de chargement par convoi) ----
   async function exporterPDF() {
-    const { default: jsPDF } = await import('jspdf')
-    const autoTable = (await import('jspdf-autotable')).default
-    const doc = new jsPDF()
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF()
 
-    doc.setFontSize(13)
-    doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
-    doc.setFontSize(11)
-    doc.text('Rapport logistique — Camp Biblique-Navs 2026', 14, 22)
-    doc.setFontSize(9)
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28)
-
-    autoTable(doc, {
-      startY: 35,
-      head: [['Indicateur', 'Valeur']],
-      body: [
-        ['Total articles mobilisés', String(totalArticles)],
-        ['Taux de restitution', `${Math.round(tauxRestitution * 10) / 10}%`],
-        ['Véhicules enregistrés', String(nombreVehicules)],
-      ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
-
-    autoTable(doc, {
-      head: [['Désignation', 'Catégorie', 'Qté', 'Commission', 'Lieu', 'Statut retour']],
-      body: materiels.map(m => [
-        m.designation, nomCategorie(m.categorie_id), String(m.quantite_depart ?? ''),
-        nomCommission(m.commission_id), m.lieu_stockage ?? '', libelle(STATUTS_RESTITUTION, m.statut_restitution),
-      ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [27, 59, 26] },
-    })
-
-    // Une fiche de chargement / émargement par convoi, sur une nouvelle page.
-    convois.forEach(c => {
-      const v = vehiculeDe(c)
-      doc.addPage()
-      doc.setFontSize(12)
-      doc.text('Fiche de chargement — Camp Biblique-Navs 2026', 14, 15)
+      doc.setFontSize(13)
+      doc.text('Mission Évangélique des Navigateurs CI', 14, 15)
+      doc.setFontSize(11)
+      doc.text('Rapport logistique — Camp Biblique-Navs 2026', 14, 22)
       doc.setFontSize(9)
-      doc.text(`Type : ${libelle(TYPES_CONVOI, c.type_convoi)}`, 14, 23)
-      doc.text(`Véhicule : ${v ? `${libelle(TYPES_VEHICULE, v.type)} — ${v.immatriculation ?? '—'}` : '—'}`, 14, 29)
-      doc.text(`Chauffeur : ${v?.nom_chauffeur ?? '—'} (${v?.telephone_chauffeur ?? '—'})`, 14, 35)
-      doc.text(`Heure de départ : ${c.heure_depart ? new Date(c.heure_depart).toLocaleString('fr-FR') : 'Non programmée'}`, 14, 41)
-      doc.text('Contenu / Manifeste :', 14, 49)
-      doc.setFontSize(8)
-      const lignesContenu = doc.splitTextToSize(c.contenu || 'Non renseigné', 180)
-      doc.text(lignesContenu, 14, 55)
-      doc.setFontSize(9)
-      doc.text('Signature chef de convoi : _______________________', 14, 270)
-    })
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28)
 
-    doc.save(`rapport_logistique_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+      autoTable(doc, {
+        startY: 35,
+        head: [['Indicateur', 'Valeur']],
+        body: [
+          ['Total articles mobilisés', String(totalArticles)],
+          ['Taux de restitution', `${Math.round(tauxRestitution * 10) / 10}%`],
+          ['Véhicules enregistrés', String(nombreVehicules)],
+        ],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
+
+      autoTable(doc, {
+        head: [['Désignation', 'Catégorie', 'Qté', 'Commission', 'Lieu', 'Statut retour']],
+        body: materiels.map(m => [
+          m.designation, nomCategorie(m.categorie_id), String(m.quantite_depart ?? ''),
+          nomCommission(m.commission_id), m.lieu_stockage ?? '', libelle(STATUTS_RESTITUTION, m.statut_restitution),
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [27, 59, 26] },
+      })
+
+      // Une fiche de chargement / émargement par convoi, sur une nouvelle page.
+      convois.forEach(c => {
+        const v = vehiculeDe(c)
+        doc.addPage()
+        doc.setFontSize(12)
+        doc.text('Fiche de chargement — Camp Biblique-Navs 2026', 14, 15)
+        doc.setFontSize(9)
+        doc.text(`Type : ${libelle(TYPES_CONVOI, c.type_convoi)}`, 14, 23)
+        doc.text(`Véhicule : ${v ? `${libelle(TYPES_VEHICULE, v.type)} — ${v.immatriculation ?? '—'}` : '—'}`, 14, 29)
+        doc.text(`Chauffeur : ${v?.nom_chauffeur ?? '—'} (${v?.telephone_chauffeur ?? '—'})`, 14, 35)
+        doc.text(`Heure de départ : ${c.heure_depart ? new Date(c.heure_depart).toLocaleString('fr-FR') : 'Non programmée'}`, 14, 41)
+        doc.text('Contenu / Manifeste :', 14, 49)
+        doc.setFontSize(8)
+        const lignesContenu = doc.splitTextToSize(c.contenu || 'Non renseigné', 180)
+        doc.text(lignesContenu, 14, 55)
+        doc.setFontSize(9)
+        doc.text('Signature chef de convoi : _______________________', 14, 270)
+      })
+
+      doc.save(`rapport_logistique_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    }
   }
 
   if (statutAcces === 'verification') {

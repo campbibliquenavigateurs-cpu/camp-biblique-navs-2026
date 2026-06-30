@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Download } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
+import { recupererApresEchecChargement } from '../utils/recuperation'
 import { useAccesRole } from '../hooks/useAccesRole'
 import AccesRestreint from './AccesRestreint'
 import Login from './Login'
@@ -82,26 +83,32 @@ export default function ParametresAdmin() {
   // et à conserver ailleurs (Google Drive, e-mail...).
   async function telechargerSauvegarde() {
     setExportEnCours(true)
-    const { utils, writeFileXLSX } = await import('xlsx')
+    try {
+      const { utils, writeFileXLSX } = await import('xlsx')
 
-    const [inscriptions, versements, tresorerie, commissions, donsNature] = await Promise.all([
-      supabase.from('inscriptions').select('*'),
-      supabase.from('versements').select('*'),
-      supabase.from('tresorerie').select('*'),
-      supabase.from('commissions').select('*'),
-      supabase.from('dons_nature').select('*'),
-    ])
+      const [inscriptions, versements, tresorerie, commissions, donsNature] = await Promise.all([
+        supabase.from('inscriptions').select('*'),
+        supabase.from('versements').select('*'),
+        supabase.from('tresorerie').select('*'),
+        supabase.from('commissions').select('*'),
+        supabase.from('dons_nature').select('*'),
+      ])
 
-    const classeur = utils.book_new()
-    utils.book_append_sheet(classeur, utils.json_to_sheet(inscriptions.data ?? []), 'Inscriptions')
-    utils.book_append_sheet(classeur, utils.json_to_sheet(versements.data ?? []), 'Versements')
-    utils.book_append_sheet(classeur, utils.json_to_sheet(tresorerie.data ?? []), 'Tresorerie')
-    utils.book_append_sheet(classeur, utils.json_to_sheet(commissions.data ?? []), 'Commissions')
-    utils.book_append_sheet(classeur, utils.json_to_sheet(donsNature.data ?? []), 'DonsNature')
+      const classeur = utils.book_new()
+      utils.book_append_sheet(classeur, utils.json_to_sheet(inscriptions.data ?? []), 'Inscriptions')
+      utils.book_append_sheet(classeur, utils.json_to_sheet(versements.data ?? []), 'Versements')
+      utils.book_append_sheet(classeur, utils.json_to_sheet(tresorerie.data ?? []), 'Tresorerie')
+      utils.book_append_sheet(classeur, utils.json_to_sheet(commissions.data ?? []), 'Commissions')
+      utils.book_append_sheet(classeur, utils.json_to_sheet(donsNature.data ?? []), 'DonsNature')
 
-    setExportEnCours(false)
-    writeFileXLSX(classeur, `sauvegarde_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
-    toast.succes('Sauvegarde téléchargée — conservez-la dans un endroit sûr (Drive, e-mail...).')
+      writeFileXLSX(classeur, `sauvegarde_camp_navs_2026_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      toast.succes('Sauvegarde téléchargée — conservez-la dans un endroit sûr (Drive, e-mail...).')
+    } catch {
+      toast.erreur("Échec de la génération — l'application va se mettre à jour, merci de réessayer ensuite.")
+      recupererApresEchecChargement()
+    } finally {
+      setExportEnCours(false)
+    }
   }
 
   if (statutAcces === 'verification') {
